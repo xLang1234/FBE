@@ -10,6 +10,9 @@ const { initializeDbConnection } = require("./config/db");
 // Import routes
 const authRoutes = require("./routes/auth");
 const userRoutes = require("./routes/user");
+const cryptoRoutes = require("./routes/crypto");
+// Add these near the top of your app.js file with other imports
+const cryptoSentiment = require("./services/cryptoSentiment");
 
 // Import middleware
 const errorHandler = require("./middleware/errorHandler");
@@ -31,6 +34,7 @@ app.use(
 // Register routes
 app.use("/api/auth", authRoutes);
 app.use("/api/user", userRoutes);
+app.use("/api/crypto", cryptoRoutes);
 
 // Database initialization endpoint
 app.get("/api/init-db", async (req, res) => {
@@ -38,6 +42,9 @@ app.get("/api/init-db", async (req, res) => {
 
   try {
     await require("./config/db").initializeDatabase();
+    // Add this line to initialize crypto sentiment tables
+    await cryptoSentiment.initializeDatabase();
+
     logger.info("Database initialized successfully");
     res.status(200).json({ message: "Database initialized successfully" });
   } catch (error) {
@@ -57,6 +64,10 @@ app.listen(PORT, () => {
 
   // Initialize DB connection
   initializeDbConnection();
+
+  // Start the crypto sentiment update scheduler
+  cryptoSentiment.startUpdateScheduler();
+  logger.info("Crypto sentiment scheduler started");
 });
 
 // Handle uncaught exceptions
