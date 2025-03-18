@@ -15,11 +15,13 @@ const cryptoRoutes = require("./routes/crypto");
 const telegramRoutes = require("./routes/telegram");
 const dbAdminRoutes = require("./routes/dbAdmin");
 const altcoinSeasonRoutes = require("./routes/altcoinSeason");
+const cryptoListingsRoutes = require("./routes/cryptoListings");
 
 // Import services
 const fearAndGreedIndex = require("./services/cryptoSentiment");
 const telegramService = require("./services/telegram");
 const altcoinSeason = require("./services/altcoinSeason");
+const cryptoListings = require("./services/cryptoListings");
 
 // Import middleware
 const errorHandler = require("./middleware/errorHandler");
@@ -44,6 +46,7 @@ app.use("/api/user", userRoutes);
 app.use("/api/crypto", cryptoRoutes);
 app.use("/api/telegram", telegramRoutes);
 app.use("/api/crypto", altcoinSeasonRoutes);
+app.use("/api/crypto", cryptoListingsRoutes);
 
 // Register admin routes with a clear path name to indicate these are admin operations
 // Only load these routes in development and staging environments
@@ -64,6 +67,8 @@ app.get("/api/init-db", async (req, res) => {
 
     // Initialize altcoin season index tables
     await altcoinSeason.initializeDatabase();
+
+    await cryptoListings.initializeDatabase();
 
     logger.info("Database initialized successfully");
     res.status(200).json({ message: "Database initialized successfully" });
@@ -92,6 +97,10 @@ app.listen(PORT, async () => {
   // Start the altcoin season index update scheduler
   altcoinSeason.startUpdateScheduler();
   logger.info("Altcoin season index scheduler started");
+
+  // Start the crypto listings update scheduler
+  cryptoListings.startUpdateScheduler();
+  logger.info("Crypto listings scheduler started");
 
   // Initialize Telegram bot
   if (process.env.TELEGRAM_BOT_TOKEN) {
