@@ -2,21 +2,6 @@
  * Cryptocurrencies tables
  */
 
-const createCryptoTables = async (pool) => {
-  // Create cryptocurrencies table
-  await pool.query(`
-      CREATE TABLE IF NOT EXISTS cryptocurrencies (
-        id SERIAL PRIMARY KEY,
-        symbol VARCHAR(20) NOT NULL,
-        name VARCHAR(100) NOT NULL,
-        is_active BOOLEAN DEFAULT TRUE,
-        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-        updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-        UNIQUE(symbol)
-      )
-    `);
-};
-
 const createFearAndGreedIndexTable = async (pool) => {
   // Create fear_and_greed_index table
   await pool.query(`
@@ -48,7 +33,6 @@ const createLastUpdateTable = async (pool) => {
 };
 
 module.exports = {
-  createCryptoTables,
   createFearAndGreedIndexTable,
   createLastUpdateTable,
 };

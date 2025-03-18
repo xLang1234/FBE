@@ -3,8 +3,6 @@ const { pool } = require("./connection");
 const { createAuthTables } = require("./schemas/auth");
 const { createSourcesTables } = require("./schemas/sources");
 const { createContentTables } = require("./schemas/content");
-const { createCryptoTables } = require("./schemas/crypto");
-const { createAnalyticsTables } = require("./schemas/analytics");
 const { createAlertsTables } = require("./schemas/alerts");
 
 const initializeDatabase = async () => {
@@ -19,12 +17,6 @@ const initializeDatabase = async () => {
 
     await createContentTables(pool);
     logger.info("Content tables created");
-
-    await createCryptoTables(pool);
-    logger.info("Crypto tables created");
-
-    await createAnalyticsTables(pool);
-    logger.info("Analytics tables created");
 
     await createAlertsTables(pool);
     logger.info("Alerts tables created");
