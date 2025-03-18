@@ -290,6 +290,112 @@
 			"description": "Crypto market sentiment endpoints"
 		},
 		{
+			"name": "Altcoin Season",
+			"item": [
+				{
+					"name": "Get Historical Altcoin Season Data",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{sessionToken}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/crypto/altcoin-season/historical?days=30",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"crypto",
+								"altcoin-season",
+								"historical"
+							],
+							"query": [
+								{
+									"key": "days",
+									"value": "30",
+									"description": "Number of days of historical data to retrieve"
+								}
+							]
+						},
+						"description": "Retrieves historical altcoin season data from the database"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Latest Altcoin Season Data",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{sessionToken}}",
+								"type": "text"
+							}
+						],
+						"url": "{{baseUrl}}/api/crypto/altcoin-season/latest",
+						"description": "Retrieves the latest altcoin season index data from the database"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Altcoin Season Analysis",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{sessionToken}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/crypto/altcoin-season/analysis?days=30",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"crypto",
+								"altcoin-season",
+								"analysis"
+							],
+							"query": [
+								{
+									"key": "days",
+									"value": "30",
+									"description": "Number of days to include in the analysis"
+								}
+							]
+						},
+						"description": "Analyzes altcoin season data for trends and patterns over the specified number of days"
+					},
+					"response": []
+				},
+				{
+					"name": "Force Update Altcoin Season Data",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{sessionToken}}",
+								"type": "text"
+							}
+						],
+						"url": "{{baseUrl}}/api/crypto/altcoin-season/force-update",
+						"description": "Triggers a manual update of the altcoin season data from the CoinMarketCap API (admin only)"
+					},
+					"response": []
+				}
+			],
+			"description": "Altcoin season metrics and analysis endpoints"
+		},
+		{
 			"name": "Telegram",
 			"item": [
 				{

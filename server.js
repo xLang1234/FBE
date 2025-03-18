@@ -14,6 +14,7 @@ const userRoutes = require("./routes/user");
 const cryptoRoutes = require("./routes/crypto");
 const telegramRoutes = require("./routes/telegram");
 const dbAdminRoutes = require("./routes/dbAdmin");
+const altcoinSeasonRoutes = require("./routes/altcoinSeason");
 
 // Import services
 const fearAndGreedIndex = require("./services/cryptoSentiment");
@@ -42,6 +43,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/user", userRoutes);
 app.use("/api/crypto", cryptoRoutes);
 app.use("/api/telegram", telegramRoutes);
+app.use("/api/crypto", altcoinSeasonRoutes);
 
 // Register admin routes with a clear path name to indicate these are admin operations
 // Only load these routes in development and staging environments

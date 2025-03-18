@@ -3,9 +3,6 @@ const express = require("express");
 const router = express.Router();
 const altcoinSeason = require("../services/altcoinSeason");
 const logger = require("../config/logger");
-const altcoinSeasonRoutes = require("./altcoinSeason");
-
-router.use("/", altcoinSeasonRoutes);
 
 /**
  * @route   GET /api/crypto/altcoin-season/historical
