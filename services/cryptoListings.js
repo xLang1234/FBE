@@ -25,15 +25,122 @@ class CryptoListingsService {
   }
 
   async initializeDatabase() {
+    const client = await pool.connect();
     try {
-      await createCryptocurrenciesTable(pool);
-      await createCryptocurrencyPricesTable(pool);
-      await createCryptocurrencyTagsTable(pool);
-      await createCryptoListingsLastUpdateTable(pool);
-      logger.info("Cryptocurrency tables created successfully");
+      // Step 1: Drop all existing tables in reverse order of dependencies
+      logger.info("Dropping existing tables if they exist...");
+      await client.query(`
+        DROP TABLE IF EXISTS cryptocurrency_listings_last_update CASCADE;
+        DROP TABLE IF EXISTS cryptocurrency_tags CASCADE;
+        DROP TABLE IF EXISTS cryptocurrency_prices CASCADE;
+        DROP TABLE IF EXISTS cryptocurrencies CASCADE;
+      `);
+
+      // Step 2: Create the main table first with a commit
+      logger.info("Creating cryptocurrencies table...");
+      await client.query(`
+        CREATE TABLE cryptocurrencies (
+          cmc_id INTEGER PRIMARY KEY,
+          name VARCHAR(100) NOT NULL,
+          symbol VARCHAR(20) NOT NULL,
+          slug VARCHAR(100) NOT NULL,
+          max_supply DECIMAL(24, 8),
+          infinite_supply BOOLEAN,
+          date_added TIMESTAMP WITH TIME ZONE,
+          updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+        );
+        
+        CREATE INDEX idx_cryptocurrencies_symbol ON cryptocurrencies(symbol);
+      `);
+
+      // Step 3: Verify the table exists before proceeding
+      const tableCheck = await client.query(`
+        SELECT EXISTS (
+          SELECT FROM information_schema.tables 
+          WHERE table_name = 'cryptocurrencies'
+        );
+      `);
+
+      if (!tableCheck.rows[0].exists) {
+        throw new Error("Failed to create cryptocurrencies table");
+      }
+
+      logger.info("Cryptocurrencies table created successfully.");
+
+      // Step 4: Create the prices table
+      logger.info("Creating cryptocurrency_prices table...");
+      await client.query(`
+        CREATE TABLE cryptocurrency_prices (
+          id SERIAL PRIMARY KEY,
+          cmc_id INTEGER NOT NULL,
+          timestamp TIMESTAMP WITH TIME ZONE NOT NULL,
+          price_usd DECIMAL(24, 8),
+          volume_24h DECIMAL(24, 8),
+          volume_change_24h DECIMAL(24, 8),
+          percent_change_1h DECIMAL(24, 8),
+          percent_change_24h DECIMAL(24, 8),
+          percent_change_7d DECIMAL(24, 8),
+          market_cap DECIMAL(24, 8),
+          market_cap_dominance DECIMAL(10, 2),
+          fully_diluted_market_cap DECIMAL(24, 8),
+          circulating_supply DECIMAL(24, 8),
+          total_supply DECIMAL(24, 8),
+          cmc_rank INTEGER,
+          num_market_pairs INTEGER,
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+          UNIQUE(cmc_id, timestamp)
+        );
+        
+        CREATE INDEX idx_cryptocurrency_prices_cmc_id ON cryptocurrency_prices(cmc_id);
+        CREATE INDEX idx_cryptocurrency_prices_timestamp ON cryptocurrency_prices(timestamp);
+      `);
+
+      // Step 5: After basic tables are created, add foreign key constraints separately
+      logger.info("Adding foreign key constraints...");
+      await client.query(`
+        ALTER TABLE cryptocurrency_prices 
+        ADD CONSTRAINT fk_cryptocurrency_prices_cryptocurrencies 
+        FOREIGN KEY (cmc_id) REFERENCES cryptocurrencies(cmc_id) ON DELETE CASCADE;
+      `);
+
+      // Step 6: Create tags table without foreign key first
+      logger.info("Creating cryptocurrency_tags table...");
+      await client.query(`
+        CREATE TABLE cryptocurrency_tags (
+          id SERIAL PRIMARY KEY,
+          cmc_id INTEGER NOT NULL,
+          tag VARCHAR(100) NOT NULL,
+          created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+          UNIQUE(cmc_id, tag)
+        );
+        
+        CREATE INDEX idx_cryptocurrency_tags_cmc_id ON cryptocurrency_tags(cmc_id);
+      `);
+
+      // Step 7: Add foreign key constraint to tags table
+      await client.query(`
+        ALTER TABLE cryptocurrency_tags
+        ADD CONSTRAINT fk_cryptocurrency_tags_cryptocurrencies
+        FOREIGN KEY (cmc_id) REFERENCES cryptocurrencies(cmc_id) ON DELETE CASCADE;
+      `);
+
+      // Step 8: Create the last update tracking table
+      logger.info("Creating cryptocurrency_listings_last_update table...");
+      await client.query(`
+        CREATE TABLE cryptocurrency_listings_last_update (
+          id SERIAL PRIMARY KEY,
+          endpoint VARCHAR(50) NOT NULL UNIQUE,
+          last_updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+          next_update_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+        );
+      `);
+
+      logger.info("All cryptocurrency tables created successfully");
     } catch (error) {
       logger.error("Failed to create cryptocurrency tables:", error);
       throw error;
+    } finally {
+      client.release();
     }
   }
 

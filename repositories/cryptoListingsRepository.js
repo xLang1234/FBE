@@ -1,6 +1,15 @@
 // repositories/cryptoListingsRepository.js
 const logger = require("../config/logger");
 
+function safeNumericValue(value) {
+  if (value === null || value === undefined) {
+    return null;
+  }
+
+  // Convert to string to prevent any potential numeric issues during insertion
+  return value.toString();
+}
+
 class CryptoListingsRepository {
   constructor(pool) {
     this.pool = pool;
@@ -32,6 +41,10 @@ class CryptoListingsRepository {
           tags,
           quote,
         } = item;
+        console.log(
+          "🚀 ~ CryptoListingsRepository ~ saveBatch ~ quote:",
+          quote
+        );
 
         // 1. Insert or update cryptocurrency base data
         const cryptoResult = await client.query(
@@ -76,17 +89,17 @@ class CryptoListingsRepository {
           [
             cmc_id,
             timestamp,
-            quote.USD.price,
-            quote.USD.volume_24h,
-            quote.USD.volume_change_24h,
-            quote.USD.percent_change_1h,
-            quote.USD.percent_change_24h,
-            quote.USD.percent_change_7d,
-            quote.USD.market_cap,
-            quote.USD.market_cap_dominance,
-            quote.USD.fully_diluted_market_cap,
-            circulating_supply,
-            total_supply,
+            safeNumericValue(quote.USD.price),
+            safeNumericValue(quote.USD.volume_24h),
+            safeNumericValue(quote.USD.volume_change_24h),
+            safeNumericValue(quote.USD.percent_change_1h),
+            safeNumericValue(quote.USD.percent_change_24h),
+            safeNumericValue(quote.USD.percent_change_7d),
+            safeNumericValue(quote.USD.market_cap),
+            safeNumericValue(quote.USD.market_cap_dominance),
+            safeNumericValue(quote.USD.fully_diluted_market_cap),
+            safeNumericValue(circulating_supply),
+            safeNumericValue(total_supply),
             cmc_rank,
             num_market_pairs,
           ]
