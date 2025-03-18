@@ -13,11 +13,12 @@ const authRoutes = require("./routes/auth");
 const userRoutes = require("./routes/user");
 const cryptoRoutes = require("./routes/crypto");
 const telegramRoutes = require("./routes/telegram");
-const dbAdminRoutes = require("./routes/dbAdmin"); // New import
+const dbAdminRoutes = require("./routes/dbAdmin");
 
 // Import services
 const fearAndGreedIndex = require("./services/cryptoSentiment");
 const telegramService = require("./services/telegram");
+const altcoinSeason = require("./services/altcoinSeason");
 
 // Import middleware
 const errorHandler = require("./middleware/errorHandler");
@@ -59,6 +60,9 @@ app.get("/api/init-db", async (req, res) => {
     // Initialize fear and greed index tables
     await fearAndGreedIndex.initializeDatabase();
 
+    // Initialize altcoin season index tables
+    await altcoinSeason.initializeDatabase();
+
     logger.info("Database initialized successfully");
     res.status(200).json({ message: "Database initialized successfully" });
   } catch (error) {
@@ -82,6 +86,10 @@ app.listen(PORT, async () => {
   // Start the fear and greed index update scheduler
   fearAndGreedIndex.startUpdateScheduler();
   logger.info("Fear and greed index scheduler started");
+
+  // Start the altcoin season index update scheduler
+  altcoinSeason.startUpdateScheduler();
+  logger.info("Altcoin season index scheduler started");
 
   // Initialize Telegram bot
   if (process.env.TELEGRAM_BOT_TOKEN) {
