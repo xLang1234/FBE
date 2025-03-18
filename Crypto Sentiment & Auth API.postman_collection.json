@@ -42,6 +42,29 @@
 					  "description": "Drop all database tables (requires admin privileges)"
 					},
 					"response": []
+				},
+				{
+					"name": "Reset Database",
+					"request": {
+					  "method": "POST",
+					  "header": [
+						{
+						  "key": "Content-Type",
+						  "value": "application/json"
+						},
+						{
+						  "key": "Authorization",
+						  "value": "Bearer {{ADMIN_API_KEY}}"
+						}
+					  ],
+					  "body": {
+						"mode": "raw",
+						"raw": "{\n  \"confirm\": \"I understand the consequences\"\n}"
+					  },
+					  "url": "{{baseUrl}}/api/admin/database/reset-database",
+					  "description": "Reset database by dropping all tables and recreating them (requires admin privileges)"
+					},
+					"response": []
 				}
 			],
 			"description": "Database setup and initialization"
@@ -124,6 +147,22 @@
 						"description": "Log out and invalidate session token"
 					},
 					"response": []
+				},
+				{
+					"name": "Get User Profile",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{sessionToken}}",
+								"type": "text"
+							}
+						],
+						"url": "{{baseUrl}}/api/user/profile",
+						"description": "Get current user's profile information"
+					},
+					"response": []
 				}
 			],
 			"description": "Authentication endpoints for user management"
@@ -143,14 +182,14 @@
 							}
 						],
 						"url": {
-							"raw": "{{baseUrl}}/api/crypto/sentiment/historical?days=14",
+							"raw": "{{baseUrl}}/api/crypto/fear-and-greed/historical?days=14",
 							"host": [
 								"{{baseUrl}}"
 							],
 							"path": [
 								"api",
 								"crypto",
-								"sentiment",
+								"fear-and-greed",
 								"historical"
 							],
 							"query": [
@@ -176,7 +215,7 @@
 								"type": "text"
 							}
 						],
-						"url": "{{baseUrl}}/api/crypto/sentiment/latest",
+						"url": "{{baseUrl}}/api/crypto/fear-and-greed/latest",
 						"description": "Retrieves the latest fear and greed index data from the database"
 					},
 					"response": []
@@ -193,14 +232,14 @@
 							}
 						],
 						"url": {
-							"raw": "{{baseUrl}}/api/crypto/sentiment/analysis?days=30",
+							"raw": "{{baseUrl}}/api/crypto/fear-and-greed/analysis?days=30",
 							"host": [
 								"{{baseUrl}}"
 							],
 							"path": [
 								"api",
 								"crypto",
-								"sentiment",
+								"fear-and-greed",
 								"analysis"
 							],
 							"query": [
@@ -226,13 +265,166 @@
 								"type": "text"
 							}
 						],
-						"url": "{{baseUrl}}/api/crypto/sentiment/force-update",
+						"url": "{{baseUrl}}/api/crypto/fear-and-greed/force-update",
 						"description": "Triggers a manual update of the sentiment data from the CoinMarketCap API"
+					},
+					"response": []
+				},
+				{
+					"name": "Trigger Daily Summary",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{sessionToken}}",
+								"type": "text"
+							}
+						],
+						"url": "{{baseUrl}}/api/crypto/daily-summary",
+						"description": "Manually triggers the daily summary generation and delivery"
 					},
 					"response": []
 				}
 			],
 			"description": "Crypto market sentiment endpoints"
+		},
+		{
+			"name": "Telegram",
+			"item": [
+				{
+					"name": "Initialize Telegram Bot",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{sessionToken}}",
+								"type": "text"
+							}
+						],
+						"url": "{{baseUrl}}/api/telegram/initialize",
+						"description": "Initialize the Telegram bot"
+					},
+					"response": []
+				},
+				{
+					"name": "Send Message",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{sessionToken}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"chatId\": \"123456789\",\n    \"message\": \"This is a test message\"\n}"
+						},
+						"url": "{{baseUrl}}/api/telegram/send",
+						"description": "Send a message to a specific chat"
+					},
+					"response": []
+				},
+				{
+					"name": "Broadcast Message",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{sessionToken}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"message\": \"This is a broadcast message\"\n}"
+						},
+						"url": "{{baseUrl}}/api/telegram/broadcast",
+						"description": "Broadcast a message to all registered chats"
+					},
+					"response": []
+				},
+				{
+					"name": "Register Chat ID",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{sessionToken}}",
+								"type": "text"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"chatId\": \"123456789\"\n}"
+						},
+						"url": "{{baseUrl}}/api/telegram/register",
+						"description": "Register a chat ID for broadcasting"
+					},
+					"response": []
+				},
+				{
+					"name": "Unregister Chat ID",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{sessionToken}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/telegram/register/123456789",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"telegram",
+								"register",
+								"123456789"
+							]
+						},
+						"description": "Unregister a chat ID from broadcasting"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Registered Chat IDs",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{sessionToken}}",
+								"type": "text"
+							}
+						],
+						"url": "{{baseUrl}}/api/telegram/registered",
+						"description": "Get all registered chat IDs"
+					},
+					"response": []
+				}
+			],
+			"description": "Telegram bot management endpoints"
 		}
 	],
 	"event": [
@@ -268,6 +460,11 @@
 		{
 			"key": "sessionToken",
 			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "ADMIN_API_KEY",
+			"value": "your-admin-api-key-here",
 			"type": "string"
 		}
 	]
