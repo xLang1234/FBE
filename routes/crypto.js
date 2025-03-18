@@ -88,4 +88,39 @@ router.get("/sentiment/force-update", async (req, res) => {
   }
 });
 
+router.post("/update-sentiment", async (req, res) => {
+  const { symbol, sentimentValue } = req.body;
+
+  if (!symbol || sentimentValue === undefined) {
+    return res
+      .status(400)
+      .json({ error: "Symbol and sentimentValue are required" });
+  }
+
+  try {
+    const data = { [symbol]: parseFloat(sentimentValue) };
+    await cryptoSentiment.processSentimentData(data);
+
+    res
+      .status(200)
+      .json({ message: "Sentiment updated and notification sent" });
+  } catch (error) {
+    logger.error("Error updating sentiment:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+/**
+ * Manual endpoint to trigger daily summary
+ */
+router.post("/daily-summary", async (req, res) => {
+  try {
+    await cryptoSentiment.sendDailySummary();
+    res.status(200).json({ message: "Daily summary sent" });
+  } catch (error) {
+    logger.error("Error sending daily summary:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
 module.exports = router;

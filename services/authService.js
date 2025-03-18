@@ -1,3 +1,5 @@
+// services/authService.js
+
 const bcrypt = require("bcrypt");
 const logger = require("../config/logger");
 const { pool } = require("../config/db");

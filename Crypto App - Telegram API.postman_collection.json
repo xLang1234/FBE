@@ -1,0 +1,207 @@
+{
+	"info": {
+		"_postman_id": "3af68ce9-e34f-4fa7-8ae9-b7ae90c51b2d",
+		"name": "Crypto App - Telegram API",
+		"schema": "https://schema.getpostman.com/json/collection/v2.0.0/collection.json",
+		"_exporter_id": "6551225"
+	},
+	"item": [
+		{
+			"name": "Authentication",
+			"item": [
+				{
+					"name": "Login",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"user@example.com\",\n  \"password\": \"password123\"\n}"
+						},
+						"url": "{{baseUrl}}/api/auth/login",
+						"description": "Login to get JWT token for authentication"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Telegram",
+			"item": [
+				{
+					"name": "Initialize Telegram Bot",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": "{{baseUrl}}/api/telegram/initialize",
+						"description": "Initialize the Telegram bot and verify token"
+					},
+					"response": []
+				},
+				{
+					"name": "Send Message",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"chatId\": \"-1002669993572\",\n  \"message\": \"<b>Test Message</b>\\n\\nThis is a test message from the Crypto App API.\"\n}"
+						},
+						"url": "{{baseUrl}}/api/telegram/send",
+						"description": "Send a message to a specific chat"
+					},
+					"response": []
+				},
+				{
+					"name": "Broadcast Message",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"message\": \"<b>Broadcast Test</b>\\n\\nThis is a broadcast message sent to all registered chats.\"\n}"
+						},
+						"url": "{{baseUrl}}/api/telegram/broadcast",
+						"description": "Broadcast a message to all registered chats"
+					},
+					"response": []
+				},
+				{
+					"name": "Register Chat ID",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"chatId\": \"123456789\"\n}"
+						},
+						"url": "{{baseUrl}}/api/telegram/register",
+						"description": "Register a chat ID for broadcasting"
+					},
+					"response": []
+				},
+				{
+					"name": "Unregister Chat ID",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": "{{baseUrl}}/api/telegram/register/123456789",
+						"description": "Unregister a chat ID from broadcasting"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Registered Chat IDs",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": "{{baseUrl}}/api/telegram/registered",
+						"description": "Get all registered chat IDs"
+					},
+					"response": []
+				},
+				{
+					"name": "Test Sentiment Notification",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"symbol\": \"BTC\",\n  \"sentimentValue\": 0.75\n}"
+						},
+						"url": "{{baseUrl}}/api/crypto/update-sentiment",
+						"description": "Manually update sentiment to test notification"
+					},
+					"response": []
+				},
+				{
+					"name": "Trigger Daily Summary",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{token}}"
+							}
+						],
+						"url": "{{baseUrl}}/api/crypto/daily-summary",
+						"description": "Manually trigger daily summary"
+					},
+					"response": []
+				}
+			]
+		}
+	],
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://localhost:3001",
+			"type": "string"
+		},
+		{
+			"key": "token",
+			"value": "",
+			"type": "string"
+		}
+	]
+}

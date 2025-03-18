@@ -1,0 +1,274 @@
+{
+	"info": {
+		"_postman_id": "f148fca8-a735-4463-9b40-3a0ce0c0d304",
+		"name": "Crypto Sentiment & Auth API",
+		"description": "Complete collection for testing Crypto Sentiment and Authentication endpoints",
+		"schema": "https://schema.getpostman.com/json/collection/v2.0.0/collection.json",
+		"_exporter_id": "6551225"
+	},
+	"item": [
+		{
+			"name": "Database Setup",
+			"item": [
+				{
+					"name": "Initialize Database",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": "{{baseUrl}}/api/init-db",
+						"description": "Initializes all database tables including crypto sentiment tables"
+					},
+					"response": []
+				},
+				{
+					"name": "Drop Database Tables",
+					"request": {
+					  "method": "POST",
+					  "header": [
+						{
+						  "key": "Content-Type",
+						  "value": "application/json"
+						},
+						{
+						  "key": "Authorization",
+						  "value": "Bearer {{ADMIN_API_KEY}}"
+						}
+					  ],
+					  "body": {
+						"mode": "raw",
+						"raw": "{\n  \"confirm\": \"I understand the consequences\"\n}"
+					  },
+					  "url": "{{baseUrl}}/api/admin/database/drop-tables",
+					  "description": "Drop all database tables (requires admin privileges)"
+					},
+					"response": []
+				}
+			],
+			"description": "Database setup and initialization"
+		},
+		{
+			"name": "Authentication",
+			"item": [
+				{
+					"name": "Google Sign In",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"token\": \"google_id_token_here\"\n}"
+						},
+						"url": "{{baseUrl}}/api/auth/google",
+						"description": "Authenticate using Google Sign-In"
+					},
+					"response": []
+				},
+				{
+					"name": "Signup",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"username\": \"testuser\",\n    \"email\": \"test@example.com\",\n    \"password\": \"SecurePassword123!\"\n}"
+						},
+						"url": "{{baseUrl}}/api/auth/signup",
+						"description": "Create a new user account"
+					},
+					"response": []
+				},
+				{
+					"name": "Login",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"email\": \"test@example.com\",\n    \"password\": \"SecurePassword123!\"\n}"
+						},
+						"url": "{{baseUrl}}/api/auth/login",
+						"description": "Log in to an existing account"
+					},
+					"response": []
+				},
+				{
+					"name": "Logout",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"sessionToken\": \"{{sessionToken}}\"\n}"
+						},
+						"url": "{{baseUrl}}/api/auth/logout",
+						"description": "Log out and invalidate session token"
+					},
+					"response": []
+				}
+			],
+			"description": "Authentication endpoints for user management"
+		},
+		{
+			"name": "Crypto Sentiment",
+			"item": [
+				{
+					"name": "Get Historical Sentiment Data",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{sessionToken}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/crypto/sentiment/historical?days=14",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"crypto",
+								"sentiment",
+								"historical"
+							],
+							"query": [
+								{
+									"key": "days",
+									"value": "14",
+									"description": "Number of days of historical data to retrieve"
+								}
+							]
+						},
+						"description": "Retrieves historical fear and greed index data from the database"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Latest Sentiment Data",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{sessionToken}}",
+								"type": "text"
+							}
+						],
+						"url": "{{baseUrl}}/api/crypto/sentiment/latest",
+						"description": "Retrieves the latest fear and greed index data from the database"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Sentiment Analysis",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{sessionToken}}",
+								"type": "text"
+							}
+						],
+						"url": {
+							"raw": "{{baseUrl}}/api/crypto/sentiment/analysis?days=30",
+							"host": [
+								"{{baseUrl}}"
+							],
+							"path": [
+								"api",
+								"crypto",
+								"sentiment",
+								"analysis"
+							],
+							"query": [
+								{
+									"key": "days",
+									"value": "30",
+									"description": "Number of days to include in the analysis"
+								}
+							]
+						},
+						"description": "Analyzes sentiment data for trends and patterns over the specified number of days"
+					},
+					"response": []
+				},
+				{
+					"name": "Force Update Sentiment Data",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{sessionToken}}",
+								"type": "text"
+							}
+						],
+						"url": "{{baseUrl}}/api/crypto/sentiment/force-update",
+						"description": "Triggers a manual update of the sentiment data from the CoinMarketCap API"
+					},
+					"response": []
+				}
+			],
+			"description": "Crypto market sentiment endpoints"
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					"// Auto-capture session token from login responses",
+					"if (pm.response.code === 200 && pm.response.json().sessionToken) {",
+					"    pm.collectionVariables.set('sessionToken', pm.response.json().sessionToken);",
+					"    console.log('Session token captured:', pm.response.json().sessionToken);",
+					"}"
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://localhost:3001",
+			"type": "string"
+		},
+		{
+			"key": "sessionToken",
+			"value": "",
+			"type": "string"
+		}
+	]
+}

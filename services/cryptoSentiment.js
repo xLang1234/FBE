@@ -1,7 +1,14 @@
+// services/cryptoSentiment.js
 const axios = require("axios");
 const logger = require("../config/logger");
-const { pool } = require("../config/db");
+const { pool } = require("../db");
+const cron = require("node-cron");
 const CryptoSentimentRepository = require("../repositories/cryptoSentimentRepository");
+const telegramIntegration = require("./cryptoTelegramIntegration");
+const {
+  createCryptoSentimentTable,
+  createLastUpdateTable,
+} = require("../db/schemas/crypto");
 
 class CryptoSentimentService {
   constructor() {
@@ -16,11 +23,6 @@ class CryptoSentimentService {
   }
 
   async initializeDatabase() {
-    const {
-      createCryptoSentimentTable,
-      createLastUpdateTable,
-    } = require("../db/schemas/cryptoSentiment");
-
     try {
       await createCryptoSentimentTable(pool);
       await createLastUpdateTable(pool);
@@ -29,17 +31,6 @@ class CryptoSentimentService {
       logger.error("Failed to create crypto sentiment tables:", error);
       throw error;
     }
-  }
-
-  startUpdateScheduler() {
-    this.updateSentimentData();
-
-    setInterval(() => this.updateSentimentData(), this.updateInterval);
-    logger.info(
-      `Scheduled sentiment data updates every ${
-        this.updateInterval / 60000
-      } minutes`
-    );
   }
 
   async updateSentimentData() {
@@ -137,6 +128,7 @@ class CryptoSentimentService {
           timestamp: latest.timestamp,
           value: latest.value,
           value_classification: latest.value_classification,
+          symbol: latest.symbol,
         },
         status: {
           timestamp: new Date().toISOString(),
@@ -189,6 +181,192 @@ class CryptoSentimentService {
       distribution,
       dataPoints: data.length,
     };
+  }
+
+  async processSentimentData(data) {
+    try {
+      const client = await pool.connect();
+      const symbols = Object.keys(data);
+
+      for (const symbol of symbols) {
+        const sentimentScore = data[symbol];
+
+        // Fetch previous sentiment to calculate change
+        const previousResult = await client.query(
+          "SELECT score FROM crypto_sentiment WHERE symbol = $1 ORDER BY timestamp DESC LIMIT 1",
+          [symbol]
+        );
+
+        const previousScore =
+          previousResult.rows.length > 0
+            ? previousResult.rows[0].score
+            : sentimentScore;
+
+        // Determine trend
+        let trend = "stable";
+        if (sentimentScore > previousScore + 0.05) {
+          trend = "up";
+        } else if (sentimentScore < previousScore - 0.05) {
+          trend = "down";
+        }
+
+        // Insert new sentiment record
+        await client.query(
+          "INSERT INTO crypto_sentiment (symbol, score, trend, value, value_classification) VALUES ($1, $2, $3, $2, $4)",
+          [
+            symbol,
+            sentimentScore,
+            trend,
+            this.classifySentiment(sentimentScore),
+          ]
+        );
+
+        logger.info(
+          `Updated sentiment for ${symbol}: ${sentimentScore} (${trend})`
+        );
+
+        // Send notification if significant change
+        await telegramIntegration.notifySentimentChange({
+          symbol,
+          score: sentimentScore,
+          previousScore,
+          trend,
+        });
+      }
+
+      client.release();
+      return true;
+    } catch (error) {
+      logger.error("Error processing sentiment data:", error);
+      return false;
+    }
+  }
+
+  classifySentiment(score) {
+    if (score >= 80) return "extreme_greed";
+    if (score >= 60) return "greed";
+    if (score >= 40) return "neutral";
+    if (score >= 20) return "fear";
+    return "extreme_fear";
+  }
+
+  // Send daily summary
+  async sendDailySummary() {
+    try {
+      const client = await pool.connect();
+
+      // Get latest sentiment for each symbol (excluding USDT)
+      const latestSentimentResult = await client.query(`
+        WITH ranked_sentiments AS (
+          SELECT 
+            symbol, 
+            score, 
+            trend,
+            timestamp,
+            ROW_NUMBER() OVER (PARTITION BY symbol ORDER BY timestamp DESC) as row_num
+          FROM crypto_sentiment
+          WHERE symbol != 'USDT'
+        )
+        SELECT symbol, score, trend, timestamp
+        FROM ranked_sentiments
+        WHERE row_num = 1
+        ORDER BY score DESC
+        LIMIT 5
+      `);
+
+      // Get previous day's sentiment for percentage change calculation
+      const previousDayData = await client.query(`
+        SELECT 
+          symbol, 
+          score, 
+          timestamp
+        FROM crypto_sentiment
+        WHERE 
+          symbol != 'USDT' AND
+          timestamp >= NOW() - INTERVAL '48 HOURS' AND
+          timestamp < NOW() - INTERVAL '24 HOURS'
+        ORDER BY timestamp DESC
+      `);
+
+      // Create a map of previous day scores
+      const prevScoreMap = {};
+      previousDayData.rows.forEach((row) => {
+        prevScoreMap[row.symbol] = row.score;
+      });
+
+      // Calculate percentage changes
+      const topCurrencies = latestSentimentResult.rows.map((row) => {
+        const prevScore = prevScoreMap[row.symbol] || row.score;
+        const percentChange =
+          prevScore !== 0
+            ? (((row.score - prevScore) / prevScore) * 100).toFixed(2)
+            : "0.00";
+
+        const direction =
+          row.score > prevScore ? "↑" : row.score < prevScore ? "↓" : "→";
+
+        return {
+          symbol: row.symbol,
+          score: row.score,
+          percentChange: percentChange,
+          direction: direction,
+        };
+      });
+
+      // Get latest global fear & greed index
+      const fearGreedResult = await client.query(`
+        SELECT value, value_classification, timestamp
+        FROM crypto_sentiment_history
+        ORDER BY timestamp DESC
+        LIMIT 1
+      `);
+
+      const fearGreedIndex =
+        fearGreedResult.rows.length > 0
+          ? fearGreedResult.rows[0]
+          : { value: "N/A", value_classification: "N/A" };
+
+      // Prepare the summary object
+      const summary = {
+        timestamp: new Date().toISOString(),
+        fearGreedIndex: {
+          value: fearGreedIndex.value,
+          classification: fearGreedIndex.value_classification,
+          timestamp: fearGreedIndex.timestamp,
+        },
+        altcoinSeasonIndex: {
+          value: "N/A",
+          classification: "N/A",
+          status: "API not implemented yet",
+        },
+        topCurrencies: topCurrencies,
+      };
+
+      // Send the summary via Telegram
+      await telegramIntegration.sendDailySummary(summary);
+
+      client.release();
+      logger.info("Daily crypto sentiment summary sent successfully");
+      return true;
+    } catch (error) {
+      logger.error("Error sending daily summary:", error);
+      return false;
+    }
+  }
+
+  // Update the startUpdateScheduler function to include daily summary
+  startUpdateScheduler() {
+    // Schedule updates every hour
+    cron.schedule("0 * * * *", async () => {
+      logger.info("Running scheduled sentiment update");
+      await this.updateSentiments();
+    });
+
+    // Schedule daily summary at 8:00 AM
+    cron.schedule("0 8 * * *", async () => {
+      logger.info("Sending daily sentiment summary");
+      await this.sendDailySummary();
+    });
   }
 }
 

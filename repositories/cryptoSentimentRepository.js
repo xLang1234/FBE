@@ -6,140 +6,116 @@ class CryptoSentimentRepository {
     this.pool = pool;
   }
 
-  /**
-   * Save batch of sentiment data to database
-   * @param {Array} data - Array of sentiment data objects
-   * @returns {Promise<Number>} - Number of records inserted
-   */
-  async saveBatch(data) {
-    if (!data || !Array.isArray(data) || data.length === 0) {
-      return 0;
-    }
-
+  async saveBatch(sentiments) {
+    let insertedCount = 0;
     const client = await this.pool.connect();
+
     try {
       await client.query("BEGIN");
 
-      let insertCount = 0;
-      for (const item of data) {
-        try {
-          const result = await client.query(
-            `INSERT INTO crypto_sentiment (timestamp, value, value_classification) 
-             VALUES ($1, $2, $3) 
-             ON CONFLICT (timestamp) DO NOTHING
-             RETURNING id`,
-            [item.timestamp, item.value, item.value_classification]
-          );
+      for (const item of sentiments) {
+        const { timestamp, value, value_classification } = item;
 
-          if (result.rows.length > 0) {
-            insertCount++;
-          }
-        } catch (err) {
-          logger.warn(
-            `Failed to insert sentiment data for timestamp ${item.timestamp}:`,
-            err
-          );
+        // Convert timestamp to Date object
+        const timestampDate = new Date(timestamp * 1000);
+
+        const result = await client.query(
+          `INSERT INTO crypto_sentiment 
+           (timestamp, value, value_classification, score, trend, symbol) 
+           VALUES ($1, $2, $3, $2, 'new', $4)
+           ON CONFLICT (symbol, timestamp) DO NOTHING
+           RETURNING id`,
+          [timestampDate, value, value_classification, "BTC"] // Default to BTC for now
+        );
+
+        if (result.rowCount > 0) {
+          insertedCount++;
         }
       }
 
       await client.query("COMMIT");
-      return insertCount;
-    } catch (err) {
+      return insertedCount;
+    } catch (error) {
       await client.query("ROLLBACK");
-      logger.error("Error saving batch sentiment data:", err);
-      throw err;
+      logger.error("Error saving batch sentiment data:", error);
+      throw error;
     } finally {
       client.release();
     }
   }
 
-  /**
-   * Update the last update tracking record
-   * @param {String} endpoint - API endpoint name
-   * @param {Date} nextUpdateAt - When to perform the next update
-   * @returns {Promise<void>}
-   */
-  async updateLastUpdated(endpoint, nextUpdateAt) {
-    try {
-      await this.pool.query(
-        `INSERT INTO crypto_sentiment_last_update (endpoint, last_updated_at, next_update_at) 
-         VALUES ($1, NOW(), $2)
-         ON CONFLICT (endpoint) DO UPDATE 
-         SET last_updated_at = NOW(), next_update_at = $2`,
-        [endpoint, nextUpdateAt]
-      );
-    } catch (err) {
-      logger.error(`Error updating last_updated for ${endpoint}:`, err);
-      throw err;
-    }
-  }
-
-  /**
-   * Check if it's time to update data from API
-   * @param {String} endpoint - API endpoint name
-   * @returns {Promise<Boolean>} - True if update is needed
-   */
-  async shouldUpdate(endpoint) {
+  async shouldUpdate(updateType) {
     try {
       const result = await this.pool.query(
-        `SELECT next_update_at FROM crypto_sentiment_last_update 
-         WHERE endpoint = $1`,
-        [endpoint]
+        `SELECT next_update FROM last_update WHERE update_type = $1`,
+        [updateType]
       );
 
       if (result.rows.length === 0) {
-        return true; // No record, first time
+        return true;
       }
 
-      const nextUpdateAt = new Date(result.rows[0].next_update_at);
-      return new Date() >= nextUpdateAt;
-    } catch (err) {
-      logger.error(`Error checking update status for ${endpoint}:`, err);
-      return true; // Default to updating if error occurs
+      const nextUpdate = result.rows[0].next_update;
+      return new Date() >= new Date(nextUpdate);
+    } catch (error) {
+      logger.error("Error checking update time:", error);
+      return true; // On error, assume we should update
     }
   }
 
-  /**
-   * Get the latest sentiment data from the database
-   * @returns {Promise<Object>} - Latest sentiment data
-   */
-  async getLatest() {
+  async updateLastUpdated(updateType, nextUpdate) {
     try {
-      const result = await this.pool.query(
-        `SELECT timestamp, value, value_classification, created_at
-         FROM crypto_sentiment
-         ORDER BY timestamp DESC
-         LIMIT 1`
+      await this.pool.query(
+        `INSERT INTO last_update (update_type, last_updated, next_update)
+         VALUES ($1, NOW(), $2)
+         ON CONFLICT (update_type) 
+         DO UPDATE SET last_updated = NOW(), next_update = $2`,
+        [updateType, nextUpdate]
       );
-
-      return result.rows.length > 0 ? result.rows[0] : null;
-    } catch (err) {
-      logger.error("Error fetching latest sentiment data:", err);
-      throw err;
+      return true;
+    } catch (error) {
+      logger.error("Error updating last_update record:", error);
+      throw error;
     }
   }
 
-  /**
-   * Get historical sentiment data
-   * @param {Number} days - Number of days to retrieve
-   * @returns {Promise<Array>} - Historical sentiment data
-   */
   async getHistoricalData(days = 10) {
     try {
       const result = await this.pool.query(
-        `SELECT timestamp, value, value_classification
-         FROM crypto_sentiment
-         WHERE timestamp >= extract(epoch from (NOW() - INTERVAL '${days} days'))
-         ORDER BY timestamp DESC`
+        `SELECT 
+          timestamp, 
+          value, 
+          value_classification,
+          symbol
+         FROM crypto_sentiment 
+         WHERE timestamp >= NOW() - INTERVAL '${days} days'
+         ORDER BY timestamp ASC`
       );
-
       return result.rows;
-    } catch (err) {
-      logger.error(
-        `Error fetching ${days} days of historical sentiment data:`,
-        err
+    } catch (error) {
+      logger.error("Error fetching historical data:", error);
+      throw error;
+    }
+  }
+
+  async getLatest() {
+    try {
+      const result = await this.pool.query(
+        `SELECT 
+          timestamp, 
+          value, 
+          value_classification,
+          symbol,
+          score,
+          trend
+         FROM crypto_sentiment 
+         ORDER BY timestamp DESC 
+         LIMIT 1`
       );
-      throw err;
+      return result.rows.length > 0 ? result.rows[0] : null;
+    } catch (error) {
+      logger.error("Error fetching latest sentiment data:", error);
+      throw error;
     }
   }
 }
