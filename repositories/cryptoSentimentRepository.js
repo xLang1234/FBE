@@ -1,7 +1,7 @@
 // repositories/cryptoSentimentRepository.js
 const logger = require("../config/logger");
 
-class CryptoSentimentRepository {
+class FearAndGreedIndexRepository {
   constructor(pool) {
     this.pool = pool;
   }
@@ -20,12 +20,12 @@ class CryptoSentimentRepository {
         const timestampDate = new Date(timestamp * 1000);
 
         const result = await client.query(
-          `INSERT INTO crypto_sentiment 
-           (timestamp, value, value_classification, score, trend, symbol) 
-           VALUES ($1, $2, $3, $2, 'new', $4)
-           ON CONFLICT (symbol, timestamp) DO NOTHING
+          `INSERT INTO fear_and_greed_index 
+           (timestamp, value, value_classification) 
+           VALUES ($1, $2, $3)
+           ON CONFLICT (timestamp) DO NOTHING
            RETURNING id`,
-          [timestampDate, value, value_classification, "BTC"] // Default to BTC for now
+          [timestampDate, value, value_classification]
         );
 
         if (result.rowCount > 0) {
@@ -37,7 +37,7 @@ class CryptoSentimentRepository {
       return insertedCount;
     } catch (error) {
       await client.query("ROLLBACK");
-      logger.error("Error saving batch sentiment data:", error);
+      logger.error("Error saving batch fear and greed index data:", error);
       throw error;
     } finally {
       client.release();
@@ -85,9 +85,8 @@ class CryptoSentimentRepository {
         `SELECT 
           timestamp, 
           value, 
-          value_classification,
-          symbol
-         FROM crypto_sentiment 
+          value_classification
+         FROM fear_and_greed_index 
          WHERE timestamp >= NOW() - INTERVAL '${days} days'
          ORDER BY timestamp ASC`
       );
@@ -104,20 +103,17 @@ class CryptoSentimentRepository {
         `SELECT 
           timestamp, 
           value, 
-          value_classification,
-          symbol,
-          score,
-          trend
-         FROM crypto_sentiment 
+          value_classification
+         FROM fear_and_greed_index 
          ORDER BY timestamp DESC 
          LIMIT 1`
       );
       return result.rows.length > 0 ? result.rows[0] : null;
     } catch (error) {
-      logger.error("Error fetching latest sentiment data:", error);
+      logger.error("Error fetching latest fear and greed index data:", error);
       throw error;
     }
   }
 }
 
-module.exports = CryptoSentimentRepository;
+module.exports = FearAndGreedIndexRepository;

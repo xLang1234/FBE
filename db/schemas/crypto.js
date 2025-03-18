@@ -17,25 +17,21 @@ const createCryptoTables = async (pool) => {
     `);
 };
 
-const createCryptoSentimentTable = async (pool) => {
-  // Create crypto_sentiment table
+const createFearAndGreedIndexTable = async (pool) => {
+  // Create fear_and_greed_index table
   await pool.query(`
-      CREATE TABLE IF NOT EXISTS crypto_sentiment (
+      CREATE TABLE IF NOT EXISTS fear_and_greed_index (
         id SERIAL PRIMARY KEY,
-        symbol VARCHAR(20) NOT NULL,
         timestamp TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
         value DECIMAL(5,2) NOT NULL,
         value_classification VARCHAR(20) NOT NULL,
-        score DECIMAL(5,2) NOT NULL,
-        trend VARCHAR(10) NOT NULL,
-        UNIQUE(symbol, timestamp)
+        UNIQUE(timestamp)
       )
     `);
 
   // Create index
   await pool.query(`
-      CREATE INDEX IF NOT EXISTS idx_crypto_sentiment_symbol ON crypto_sentiment(symbol);
-      CREATE INDEX IF NOT EXISTS idx_crypto_sentiment_timestamp ON crypto_sentiment(timestamp);
+      CREATE INDEX IF NOT EXISTS idx_fear_and_greed_index_timestamp ON fear_and_greed_index(timestamp);
     `);
 };
 
@@ -53,6 +49,6 @@ const createLastUpdateTable = async (pool) => {
 
 module.exports = {
   createCryptoTables,
-  createCryptoSentimentTable,
+  createFearAndGreedIndexTable,
   createLastUpdateTable,
 };

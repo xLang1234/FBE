@@ -1,85 +1,85 @@
 // routes/crypto.js
 const express = require("express");
 const router = express.Router();
-const cryptoSentiment = require("../services/cryptoSentiment");
+const fearAndGreedIndex = require("../services/cryptoSentiment");
 const logger = require("../config/logger");
 
 /**
- * @route   GET /api/crypto/sentiment/historical
+ * @route   GET /api/crypto/fear-and-greed/historical
  * @desc    Get historical fear and greed data from database
  * @access  Public
  */
-router.get("/sentiment/historical", async (req, res) => {
+router.get("/fear-and-greed/historical", async (req, res) => {
   try {
     const days = parseInt(req.query.days) || 10;
 
     logger.info(
-      `Fetching ${days} days of historical sentiment data from database`
+      `Fetching ${days} days of historical fear and greed index data from database`
     );
-    const data = await cryptoSentiment.getHistoricalData(days);
+    const data = await fearAndGreedIndex.getHistoricalData(days);
 
     res.json(data);
   } catch (error) {
-    logger.error("Error in historical sentiment endpoint:", error);
+    logger.error("Error in historical fear and greed index endpoint:", error);
     res.status(500).json({ error: error.message });
   }
 });
 
 /**
- * @route   GET /api/crypto/sentiment/latest
+ * @route   GET /api/crypto/fear-and-greed/latest
  * @desc    Get latest fear and greed index from database
  * @access  Public
  */
-router.get("/sentiment/latest", async (req, res) => {
+router.get("/fear-and-greed/latest", async (req, res) => {
   try {
-    logger.info("Fetching latest sentiment data from database");
-    const data = await cryptoSentiment.getLatestData();
+    logger.info("Fetching latest fear and greed index data from database");
+    const data = await fearAndGreedIndex.getLatestData();
 
     res.json(data);
   } catch (error) {
-    logger.error("Error in latest sentiment endpoint:", error);
+    logger.error("Error in latest fear and greed index endpoint:", error);
     res.status(500).json({ error: error.message });
   }
 });
 
 /**
- * @route   GET /api/crypto/sentiment/analysis
- * @desc    Get sentiment analysis from historical data in database
+ * @route   GET /api/crypto/fear-and-greed/analysis
+ * @desc    Get fear and greed analysis from historical data in database
  * @access  Public
  */
-router.get("/sentiment/analysis", async (req, res) => {
+router.get("/fear-and-greed/analysis", async (req, res) => {
   try {
     const days = parseInt(req.query.days) || 10;
 
     logger.info(
-      `Analyzing sentiment data for the last ${days} days from database`
+      `Analyzing fear and greed index data for the last ${days} days from database`
     );
-    const rawData = await cryptoSentiment.getHistoricalData(days);
-    const analysis = cryptoSentiment.analyzeSentiment(rawData.data);
+    const rawData = await fearAndGreedIndex.getHistoricalData(days);
+    const analysis = fearAndGreedIndex.analyzeFearAndGreedData(rawData.data);
 
     res.json({
       analysis,
       status: rawData.status,
     });
   } catch (error) {
-    logger.error("Error in sentiment analysis endpoint:", error);
+    logger.error("Error in fear and greed index analysis endpoint:", error);
     res.status(500).json({ error: error.message });
   }
 });
 
 /**
- * @route   GET /api/crypto/sentiment/force-update
+ * @route   GET /api/crypto/fear-and-greed/force-update
  * @desc    Force an update from the CoinMarketCap API (admin only)
  * @access  Private/Admin
  */
-router.get("/sentiment/force-update", async (req, res) => {
+router.get("/fear-and-greed/force-update", async (req, res) => {
   try {
-    logger.info("Admin requested force update of sentiment data");
-    await cryptoSentiment.updateSentimentData();
+    logger.info("Admin requested force update of fear and greed index data");
+    await fearAndGreedIndex.updateFearAndGreedData();
 
     res.json({
       success: true,
-      message: "Sentiment data update triggered successfully",
+      message: "Fear and greed index data update triggered successfully",
       timestamp: new Date().toISOString(),
     });
   } catch (error) {
@@ -88,34 +88,12 @@ router.get("/sentiment/force-update", async (req, res) => {
   }
 });
 
-router.post("/update-sentiment", async (req, res) => {
-  const { symbol, sentimentValue } = req.body;
-
-  if (!symbol || sentimentValue === undefined) {
-    return res
-      .status(400)
-      .json({ error: "Symbol and sentimentValue are required" });
-  }
-
-  try {
-    const data = { [symbol]: parseFloat(sentimentValue) };
-    await cryptoSentiment.processSentimentData(data);
-
-    res
-      .status(200)
-      .json({ message: "Sentiment updated and notification sent" });
-  } catch (error) {
-    logger.error("Error updating sentiment:", error);
-    res.status(500).json({ error: "Internal server error" });
-  }
-});
-
 /**
  * Manual endpoint to trigger daily summary
  */
 router.post("/daily-summary", async (req, res) => {
   try {
-    await cryptoSentiment.sendDailySummary();
+    await fearAndGreedIndex.sendDailySummary();
     res.status(200).json({ message: "Daily summary sent" });
   } catch (error) {
     logger.error("Error sending daily summary:", error);

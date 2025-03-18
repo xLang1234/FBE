@@ -16,7 +16,7 @@ const telegramRoutes = require("./routes/telegram");
 const dbAdminRoutes = require("./routes/dbAdmin"); // New import
 
 // Import services
-const cryptoSentiment = require("./services/cryptoSentiment");
+const fearAndGreedIndex = require("./services/cryptoSentiment");
 const telegramService = require("./services/telegram");
 
 // Import middleware
@@ -56,8 +56,8 @@ app.get("/api/init-db", async (req, res) => {
   try {
     await db.initializeDatabase();
 
-    // Initialize crypto sentiment tables
-    await cryptoSentiment.initializeDatabase();
+    // Initialize fear and greed index tables
+    await fearAndGreedIndex.initializeDatabase();
 
     logger.info("Database initialized successfully");
     res.status(200).json({ message: "Database initialized successfully" });
@@ -79,9 +79,9 @@ app.listen(PORT, async () => {
   // Initialize DB connection
   db.initializeDbConnection();
 
-  // Start the crypto sentiment update scheduler
-  cryptoSentiment.startUpdateScheduler();
-  logger.info("Crypto sentiment scheduler started");
+  // Start the fear and greed index update scheduler
+  fearAndGreedIndex.startUpdateScheduler();
+  logger.info("Fear and greed index scheduler started");
 
   // Initialize Telegram bot
   if (process.env.TELEGRAM_BOT_TOKEN) {
