@@ -1,9 +1,25 @@
 /**
- * Authentication related tables: users and sessions
+ * Authentication related tables: users, roles, and sessions
  */
 
 const createAuthTables = async (pool) => {
-  // Create users table with username and password_hash fields
+  // Create roles table
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS roles (
+      id SERIAL PRIMARY KEY,
+      name TEXT UNIQUE NOT NULL,
+      created_at TIMESTAMP DEFAULT NOW()
+    )
+  `);
+
+  // Insert default roles
+  await pool.query(`
+    INSERT INTO roles (name) 
+    VALUES ('basic'), ('paid'), ('admin')
+    ON CONFLICT (name) DO NOTHING
+  `);
+
+  // Create users table with role_id field
   await pool.query(`
       CREATE TABLE IF NOT EXISTS users (
         id SERIAL PRIMARY KEY,
@@ -13,6 +29,7 @@ const createAuthTables = async (pool) => {
         password_hash TEXT,
         name TEXT NOT NULL,
         picture TEXT,
+        role_id INTEGER REFERENCES roles(id) DEFAULT 1,
         created_at TIMESTAMP NOT NULL,
         last_login TIMESTAMP NOT NULL
       )
@@ -34,6 +51,7 @@ const createAuthTables = async (pool) => {
       CREATE INDEX IF NOT EXISTS idx_users_google_id ON users(google_id);
       CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
       CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+      CREATE INDEX IF NOT EXISTS idx_users_role_id ON users(role_id);
       CREATE INDEX IF NOT EXISTS idx_sessions_token ON sessions(token);
       CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions(user_id);
     `);

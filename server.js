@@ -11,6 +11,7 @@ const db = require("./db");
 // Import routes
 const authRoutes = require("./routes/auth");
 const userRoutes = require("./routes/user");
+const adminRoutes = require("./routes/admin");
 const cryptoRoutes = require("./routes/crypto");
 const telegramRoutes = require("./routes/telegram");
 const dbAdminRoutes = require("./routes/dbAdmin");
@@ -43,10 +44,17 @@ app.use(
 // Register routes
 app.use("/api/auth", authRoutes);
 app.use("/api/user", userRoutes);
+app.use("/api/admin", adminRoutes); // Admin routes
 app.use("/api/crypto", cryptoRoutes);
 app.use("/api/telegram", telegramRoutes);
 app.use("/api/crypto", altcoinSeasonRoutes);
 app.use("/api/crypto", cryptoListingsRoutes);
+
+// In the imports section:
+const paymentRoutes = require("./routes/payment");
+
+// In the routes registration section:
+app.use("/api/payment", paymentRoutes);
 
 // Register admin routes with a clear path name to indicate these are admin operations
 // Only load these routes in development and staging environments

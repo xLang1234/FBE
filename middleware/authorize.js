@@ -1,3 +1,4 @@
+// middleware/authorize.js
 const logger = require("../config/logger");
 const { pool } = require("../config/db");
 
@@ -15,7 +16,11 @@ const authorize = async (req, res, next) => {
   try {
     // Check if session exists and is valid
     const result = await pool.query(
-      "SELECT s.*, u.id as user_id, u.email FROM sessions s JOIN users u ON s.user_id = u.id WHERE s.token = $1 AND s.expires_at > NOW()",
+      `SELECT s.*, u.id as user_id, u.email, r.name as role 
+       FROM sessions s 
+       JOIN users u ON s.user_id = u.id 
+       JOIN roles r ON u.role_id = r.id
+       WHERE s.token = $1 AND s.expires_at > NOW()`,
       [token]
     );
 
@@ -28,6 +33,7 @@ const authorize = async (req, res, next) => {
     req.user = {
       id: result.rows[0].user_id,
       email: result.rows[0].email,
+      role: result.rows[0].role,
     };
 
     next();
@@ -37,4 +43,25 @@ const authorize = async (req, res, next) => {
   }
 };
 
-module.exports = authorize;
+// Role-based authorization middleware
+const requireRole = (allowedRoles) => {
+  return (req, res, next) => {
+    if (!req.user || !req.user.role) {
+      logger.warn("User not authenticated for role check");
+      return res.status(401).json({ error: "Authentication required" });
+    }
+
+    if (!allowedRoles.includes(req.user.role)) {
+      logger.warn(
+        `User with role ${
+          req.user.role
+        } attempted to access resource requiring ${allowedRoles.join(", ")}`
+      );
+      return res.status(403).json({ error: "Insufficient permissions" });
+    }
+
+    next();
+  };
+};
+
+module.exports = { authorize, requireRole };

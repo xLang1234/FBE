@@ -4,6 +4,9 @@ const { createAuthTables } = require("./schemas/auth");
 const { createSourcesTables } = require("./schemas/sources");
 const { createContentTables } = require("./schemas/content");
 const { createAlertsTables } = require("./schemas/alerts");
+const { createPaymentsTables } = require("./schemas/payments");
+
+// In the initializeDatabase function
 
 const initializeDatabase = async () => {
   try {
@@ -20,6 +23,9 @@ const initializeDatabase = async () => {
 
     await createAlertsTables(pool);
     logger.info("Alerts tables created");
+
+    await createPaymentsTables(pool);
+    logger.info("Payments tables created");
 
     logger.info("Database initialization completed successfully");
     return true;

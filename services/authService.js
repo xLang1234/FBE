@@ -17,7 +17,7 @@ async function saveGoogleUser(userData) {
 
     // Check if user exists by Google ID
     const checkResult = await pool.query(
-      "SELECT * FROM users WHERE google_id = $1",
+      "SELECT u.*, r.name as role_name FROM users u JOIN roles r ON u.role_id = r.id WHERE u.google_id = $1",
       [sub]
     );
 
@@ -33,16 +33,28 @@ async function saveGoogleUser(userData) {
         [email, name, picture, sub]
       );
 
+      // Get role information
+      const roleResult = await pool.query(
+        "SELECT r.name FROM roles r JOIN users u ON r.id = u.role_id WHERE u.id = $1",
+        [updateResult.rows[0].id]
+      );
+
+      const user = {
+        ...updateResult.rows[0],
+        role: roleResult.rows[0].name,
+      };
+
       logger.debug("Google user updated successfully", {
-        userId: updateResult.rows[0].id,
+        userId: user.id,
         googleId: sub,
+        role: user.role,
       });
 
-      return updateResult.rows[0];
+      return user;
     } else {
       // Check if user exists by email (might have registered with email/password)
       const emailCheckResult = await pool.query(
-        "SELECT * FROM users WHERE email = $1",
+        "SELECT u.*, r.name as role_name FROM users u JOIN roles r ON u.role_id = r.id WHERE u.email = $1",
         [email]
       );
 
@@ -58,7 +70,12 @@ async function saveGoogleUser(userData) {
           [sub, picture, email]
         );
 
-        return linkResult.rows[0];
+        const user = {
+          ...linkResult.rows[0],
+          role: emailCheckResult.rows[0].role_name,
+        };
+
+        return user;
       } else {
         // Create new user
         logger.info("Creating new Google user in database", {
@@ -66,17 +83,26 @@ async function saveGoogleUser(userData) {
           email,
         });
 
+        // Get role ID for basic role (id = 1)
+        const basicRoleId = 1;
+
         const insertResult = await pool.query(
-          "INSERT INTO users (google_id, email, name, picture, created_at, last_login) VALUES ($1, $2, $3, $4, NOW(), NOW()) RETURNING *",
-          [sub, email, name, picture]
+          "INSERT INTO users (google_id, email, name, picture, role_id, created_at, last_login) VALUES ($1, $2, $3, $4, $5, NOW(), NOW()) RETURNING *",
+          [sub, email, name, picture, basicRoleId]
         );
 
+        const user = {
+          ...insertResult.rows[0],
+          role: "basic", // Default role for new users
+        };
+
         logger.debug("Google user created successfully", {
-          userId: insertResult.rows[0].id,
+          userId: user.id,
           googleId: sub,
+          role: user.role,
         });
 
-        return insertResult.rows[0];
+        return user;
       }
     }
   } catch (error) {
@@ -106,6 +132,7 @@ async function processGoogleSignIn(token) {
   logger.info("User authenticated successfully via Google", {
     userId: user.id,
     email: user.email,
+    role: user.role,
   });
 
   return {
@@ -114,6 +141,7 @@ async function processGoogleSignIn(token) {
       name: user.name,
       email: user.email,
       picture: user.picture,
+      role: user.role,
     },
     sessionToken,
   };
@@ -150,10 +178,13 @@ async function processSignup(username, email, password) {
   const saltRounds = 10;
   const hashedPassword = await bcrypt.hash(password, saltRounds);
 
+  // Get role ID for basic role (id = 1)
+  const basicRoleId = 1;
+
   // Create user
   const result = await pool.query(
-    "INSERT INTO users (username, email, password_hash, name, created_at, last_login) VALUES ($1, $2, $3, $4, NOW(), NOW()) RETURNING *",
-    [username, email, hashedPassword, username]
+    "INSERT INTO users (username, email, password_hash, name, role_id, created_at, last_login) VALUES ($1, $2, $3, $4, $5, NOW(), NOW()) RETURNING *",
+    [username, email, hashedPassword, username, basicRoleId]
   );
 
   const user = result.rows[0];
@@ -169,6 +200,7 @@ async function processSignup(username, email, password) {
       username: user.username,
       name: user.name,
       email: user.email,
+      role: "basic", // Default role for new users
     },
     sessionToken,
   };
@@ -177,9 +209,13 @@ async function processSignup(username, email, password) {
 // Process traditional login
 async function processLogin(email, password) {
   // Find user by email
-  const result = await pool.query("SELECT * FROM users WHERE email = $1", [
-    email,
-  ]);
+  const result = await pool.query(
+    `SELECT u.*, r.name as role_name 
+     FROM users u 
+     JOIN roles r ON u.role_id = r.id 
+     WHERE u.email = $1`,
+    [email]
+  );
 
   if (result.rows.length === 0) {
     logger.warn("Login attempt with non-existent email", { email });
@@ -210,7 +246,11 @@ async function processLogin(email, password) {
   // Create session
   const sessionToken = await createSession(user.id);
 
-  logger.info("User logged in successfully", { userId: user.id, email });
+  logger.info("User logged in successfully", {
+    userId: user.id,
+    email,
+    role: user.role_name,
+  });
 
   return {
     user: {
@@ -219,9 +259,44 @@ async function processLogin(email, password) {
       name: user.name,
       email: user.email,
       picture: user.picture,
+      role: user.role_name,
     },
     sessionToken,
   };
+}
+
+// Change user role
+async function changeUserRole(userId, roleName) {
+  try {
+    // Get role ID
+    const roleResult = await pool.query(
+      "SELECT id FROM roles WHERE name = $1",
+      [roleName]
+    );
+
+    if (roleResult.rows.length === 0) {
+      logger.warn("Attempted to assign invalid role", { roleName });
+      return { error: "Invalid role", status: 400 };
+    }
+
+    const roleId = roleResult.rows[0].id;
+
+    // Update user role
+    await pool.query("UPDATE users SET role_id = $1 WHERE id = $2", [
+      roleId,
+      userId,
+    ]);
+
+    logger.info("User role updated successfully", {
+      userId,
+      newRole: roleName,
+    });
+
+    return { success: true };
+  } catch (error) {
+    logger.error("Error changing user role:", error);
+    throw error;
+  }
 }
 
 module.exports = {
@@ -229,4 +304,5 @@ module.exports = {
   processGoogleSignIn,
   processSignup,
   processLogin,
+  changeUserRole,
 };
