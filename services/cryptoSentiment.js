@@ -8,7 +8,7 @@ const telegramIntegration = require("./cryptoTelegramIntegration");
 const {
   createFearAndGreedIndexTable,
   createLastUpdateTable,
-} = require("../db/schemas/crypto");
+} = require("../db/schemas/cryptoListings");
 
 class FearAndGreedIndexService {
   constructor() {

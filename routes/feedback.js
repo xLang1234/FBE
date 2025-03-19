@@ -11,7 +11,7 @@ const { requireRole } = require("../middleware/authorize");
  * @desc    Submit new feedback
  * @access  Public
  */
-router.post("/", async (req, res) => {
+router.post("/", authorize, async (req, res) => {
   try {
     const { feedbackType, content, rating, source } = req.body;
 
