@@ -17,12 +17,15 @@ const telegramRoutes = require("./routes/telegram");
 const dbAdminRoutes = require("./routes/dbAdmin");
 const altcoinSeasonRoutes = require("./routes/altcoinSeason");
 const cryptoListingsRoutes = require("./routes/cryptoListings");
+const feedbackRoutes = require("./routes/feedback");
+const paymentRoutes = require("./routes/payment");
 
 // Import services
 const fearAndGreedIndex = require("./services/cryptoSentiment");
 const telegramService = require("./services/telegram");
 const altcoinSeason = require("./services/altcoinSeason");
 const cryptoListings = require("./services/cryptoListings");
+const feedbackService = require("./services/feedback");
 
 // Import middleware
 const errorHandler = require("./middleware/errorHandler");
@@ -49,11 +52,7 @@ app.use("/api/crypto", cryptoRoutes);
 app.use("/api/telegram", telegramRoutes);
 app.use("/api/crypto", altcoinSeasonRoutes);
 app.use("/api/crypto", cryptoListingsRoutes);
-
-// In the imports section:
-const paymentRoutes = require("./routes/payment");
-
-// In the routes registration section:
+app.use("/api/feedback", feedbackRoutes);
 app.use("/api/payment", paymentRoutes);
 
 // Register admin routes with a clear path name to indicate these are admin operations
@@ -76,7 +75,11 @@ app.get("/api/init-db", async (req, res) => {
     // Initialize altcoin season index tables
     await altcoinSeason.initializeDatabase();
 
+    // Initialize crypto listings tables
     await cryptoListings.initializeDatabase();
+
+    // Initialize feedback tables
+    await feedbackService.initializeDatabase();
 
     logger.info("Database initialized successfully");
     res.status(200).json({ message: "Database initialized successfully" });

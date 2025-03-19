@@ -3,8 +3,8 @@ const express = require("express");
 const router = express.Router();
 const feedback = require("../services/feedback");
 const logger = require("../config/logger");
-const { authenticate } = require("../middleware/auth");
-const { isAdmin } = require("../middleware/roleCheck");
+const { authorize } = require("../middleware/authorize");
+const { requireRole } = require("../middleware/authorize");
 
 /**
  * @route   POST /api/feedback
@@ -39,7 +39,7 @@ router.post("/", async (req, res) => {
  * @desc    Get all feedback (admin only)
  * @access  Private/Admin
  */
-router.get("/", authenticate, isAdmin, async (req, res) => {
+router.get("/", authorize, requireRole(["admin"]), async (req, res) => {
   try {
     const { status, feedbackType, userId, limit, offset } = req.query;
 
@@ -64,7 +64,7 @@ router.get("/", authenticate, isAdmin, async (req, res) => {
  * @desc    Get current user's feedback
  * @access  Private
  */
-router.get("/my", authenticate, async (req, res) => {
+router.get("/my", authorize, async (req, res) => {
   try {
     const userId = req.user.id;
 
@@ -83,7 +83,7 @@ router.get("/my", authenticate, async (req, res) => {
  * @desc    Get specific feedback (admin or owning user)
  * @access  Private
  */
-router.get("/:id", authenticate, async (req, res) => {
+router.get("/:id", authorize, async (req, res) => {
   try {
     const feedbackId = parseInt(req.params.id);
 
@@ -94,7 +94,10 @@ router.get("/:id", authenticate, async (req, res) => {
     }
 
     // Check if user has permission (admin or feedback owner)
-    if (!req.user.isAdmin && feedbackResult.data.user_id !== req.user.id) {
+    if (
+      req.user.role !== "admin" &&
+      feedbackResult.data.user_id !== req.user.id
+    ) {
       return res.status(403).json({
         status: "error",
         message: "You do not have permission to view this feedback",
@@ -116,7 +119,7 @@ router.get("/:id", authenticate, async (req, res) => {
  * @desc    Update feedback status (admin only)
  * @access  Private/Admin
  */
-router.put("/:id", authenticate, isAdmin, async (req, res) => {
+router.put("/:id", authorize, requireRole(["admin"]), async (req, res) => {
   try {
     const feedbackId = parseInt(req.params.id);
     const updates = req.body;
@@ -143,7 +146,7 @@ router.put("/:id", authenticate, isAdmin, async (req, res) => {
  * @desc    Delete feedback (admin only)
  * @access  Private/Admin
  */
-router.delete("/:id", authenticate, isAdmin, async (req, res) => {
+router.delete("/:id", authorize, requireRole(["admin"]), async (req, res) => {
   try {
     const feedbackId = parseInt(req.params.id);
 
