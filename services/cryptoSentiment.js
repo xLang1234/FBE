@@ -166,8 +166,8 @@ class FearAndGreedIndexService {
       latest > oldest
         ? "increasing"
         : latest < oldest
-        ? "decreasing"
-        : "stable";
+          ? "decreasing"
+          : "stable";
 
     const distribution = {};
     data.forEach((item) => {
