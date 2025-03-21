@@ -16,13 +16,52 @@ const {
 
 class CryptoListingsService {
   constructor() {
-    this.apiKey = process.env.COINMARKETCAP_API_KEY;
+    // Replace single API key with an array of keys
+    this.apiKeys = this.loadApiKeys();
+    this.currentKeyIndex = 0;
     this.baseUrl = "https://pro-api.coinmarketcap.com/v1";
     this.updateInterval = 6 * 60 * 60 * 1000; // 6 hours in milliseconds
 
-    if (!this.apiKey) {
-      logger.warn("COINMARKETCAP_API_KEY not found in environment variables");
+    if (!this.apiKeys.length) {
+      logger.warn("No COINMARKETCAP_API_KEYs found in environment variables");
+    } else {
+      logger.info(`Loaded ${this.apiKeys.length} CoinMarketCap API keys`);
     }
+  }
+
+  // Load API keys from environment variables
+  loadApiKeys() {
+    const keys = [];
+
+    // Primary key
+    if (process.env.COINMARKETCAP_API_KEY) {
+      keys.push(process.env.COINMARKETCAP_API_KEY);
+    }
+
+    // Additional keys (format: COINMARKETCAP_API_KEY_1, COINMARKETCAP_API_KEY_2, etc.)
+    for (let i = 1; i <= 100; i++) {
+      const keyName = `COINMARKETCAP_API_KEY_${i}`;
+      if (process.env[keyName]) {
+        keys.push(process.env[keyName]);
+      }
+    }
+
+    return keys;
+  }
+
+  // Get the next API key in rotation
+  getNextApiKey() {
+    if (this.apiKeys.length === 0) {
+      logger.error("No API keys available");
+      throw new Error("No API keys configured");
+    }
+
+    const apiKey = this.apiKeys[this.currentKeyIndex];
+
+    // Move to the next key for the next request
+    this.currentKeyIndex = (this.currentKeyIndex + 1) % this.apiKeys.length;
+
+    return apiKey;
   }
 
   async initializeDatabase() {
@@ -110,14 +149,18 @@ class CryptoListingsService {
 
   async fetchListingsFromApi(limit = 100) {
     try {
+      // Get the next API key in rotation
+      const apiKey = this.getNextApiKey();
+
       logger.info(
-        `Fetching top ${limit} cryptocurrencies from CoinMarketCap API`
+        `Fetching top ${limit} cryptocurrencies from CoinMarketCap API (using key index: ${this.currentKeyIndex === 0 ? this.apiKeys.length - 1 : this.currentKeyIndex - 1})`
       );
+
       const response = await axios.get(
         `${this.baseUrl}/cryptocurrency/listings/latest`,
         {
           headers: {
-            "X-CMC_PRO_API_KEY": this.apiKey,
+            "X-CMC_PRO_API_KEY": apiKey,
             Accept: "application/json",
           },
           params: {
@@ -138,6 +181,12 @@ class CryptoListingsService {
           status: error.response.status,
           data: error.response.data,
         });
+
+        // If we get rate limited, try another key immediately (if available)
+        if (error.response.status === 429 && this.apiKeys.length > 1) {
+          logger.warn("Rate limit hit, retrying with next API key");
+          return this.fetchListingsFromApi(limit);
+        }
       }
       throw new Error("Failed to fetch cryptocurrency listings from API");
     }
