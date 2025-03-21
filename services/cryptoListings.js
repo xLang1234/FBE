@@ -1,4 +1,5 @@
 // services/cryptoListings.js
+// services/cryptoListings.js
 const axios = require("axios");
 const logger = require("../config/logger");
 const { pool } = require("../db");
@@ -6,6 +7,7 @@ const db = require("../db");
 const cron = require("node-cron");
 const telegramIntegration = require("./cryptoTelegramIntegration");
 const { initializeCryptoTables } = require("../db/schemas/cryptoListings");
+const coinMarketCapApiManager = require("../utils/coinmarketcapApiManager");
 
 const {
   createCryptocurrenciesTable,
@@ -16,52 +18,8 @@ const {
 
 class CryptoListingsService {
   constructor() {
-    // Replace single API key with an array of keys
-    this.apiKeys = this.loadApiKeys();
-    this.currentKeyIndex = 0;
     this.baseUrl = "https://pro-api.coinmarketcap.com/v1";
     this.updateInterval = 6 * 60 * 60 * 1000; // 6 hours in milliseconds
-
-    if (!this.apiKeys.length) {
-      logger.warn("No COINMARKETCAP_API_KEYs found in environment variables");
-    } else {
-      logger.info(`Loaded ${this.apiKeys.length} CoinMarketCap API keys`);
-    }
-  }
-
-  // Load API keys from environment variables
-  loadApiKeys() {
-    const keys = [];
-
-    // Primary key
-    if (process.env.COINMARKETCAP_API_KEY) {
-      keys.push(process.env.COINMARKETCAP_API_KEY);
-    }
-
-    // Additional keys (format: COINMARKETCAP_API_KEY_1, COINMARKETCAP_API_KEY_2, etc.)
-    for (let i = 1; i <= 100; i++) {
-      const keyName = `COINMARKETCAP_API_KEY_${i}`;
-      if (process.env[keyName]) {
-        keys.push(process.env[keyName]);
-      }
-    }
-
-    return keys;
-  }
-
-  // Get the next API key in rotation
-  getNextApiKey() {
-    if (this.apiKeys.length === 0) {
-      logger.error("No API keys available");
-      throw new Error("No API keys configured");
-    }
-
-    const apiKey = this.apiKeys[this.currentKeyIndex];
-
-    // Move to the next key for the next request
-    this.currentKeyIndex = (this.currentKeyIndex + 1) % this.apiKeys.length;
-
-    return apiKey;
   }
 
   async initializeDatabase() {
@@ -149,11 +107,11 @@ class CryptoListingsService {
 
   async fetchListingsFromApi(limit = 100) {
     try {
-      // Get the next API key in rotation
-      const apiKey = this.getNextApiKey();
+      // Get the next API key from the shared manager
+      const apiKey = coinMarketCapApiManager.getNextApiKey();
 
       logger.info(
-        `Fetching top ${limit} cryptocurrencies from CoinMarketCap API (using key index: ${this.currentKeyIndex === 0 ? this.apiKeys.length - 1 : this.currentKeyIndex - 1})`
+        `Fetching top ${limit} cryptocurrencies from CoinMarketCap API`
       );
 
       const response = await axios.get(
@@ -183,7 +141,7 @@ class CryptoListingsService {
         });
 
         // If we get rate limited, try another key immediately (if available)
-        if (error.response.status === 429 && this.apiKeys.length > 1) {
+        if (error.response.status === 429) {
           logger.warn("Rate limit hit, retrying with next API key");
           return this.fetchListingsFromApi(limit);
         }

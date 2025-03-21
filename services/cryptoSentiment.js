@@ -5,6 +5,7 @@ const { pool } = require("../db");
 const cron = require("node-cron");
 const FearAndGreedIndexRepository = require("../repositories/cryptoSentimentRepository");
 const telegramIntegration = require("./cryptoTelegramIntegration");
+const coinMarketCapApiManager = require("../utils/coinmarketcapApiManager");
 const {
   createFearAndGreedIndexTable,
   createLastUpdateTable,
@@ -12,14 +13,9 @@ const {
 
 class FearAndGreedIndexService {
   constructor() {
-    this.apiKey = process.env.COINMARKETCAP_API_KEY;
     this.baseUrl = "https://pro-api.coinmarketcap.com/v3/fear-and-greed";
     this.repository = new FearAndGreedIndexRepository(pool);
     this.updateInterval = 24 * 60 * 60 * 1000;
-
-    if (!this.apiKey) {
-      logger.warn("COINMARKETCAP_API_KEY not found in environment variables");
-    }
   }
 
   async initializeDatabase() {
@@ -65,10 +61,13 @@ class FearAndGreedIndexService {
 
   async fetchHistoricalDataFromApi(count = 10) {
     try {
+      // Get API key from the shared manager
+      const apiKey = coinMarketCapApiManager.getNextApiKey();
+
       logger.info(`Fetching ${count} days of data from CoinMarketCap API`);
       const response = await axios.get(`${this.baseUrl}/historical`, {
         headers: {
-          "X-CMC_PRO_API_KEY": this.apiKey,
+          "X-CMC_PRO_API_KEY": apiKey,
           Accept: "application/json",
         },
         params: {
@@ -89,6 +88,12 @@ class FearAndGreedIndexService {
           status: error.response.status,
           data: error.response.data,
         });
+
+        // If we get rate limited, try another key immediately
+        if (error.response.status === 429) {
+          logger.warn("Rate limit hit, retrying with next API key");
+          return this.fetchHistoricalDataFromApi(count);
+        }
       }
       throw new Error("Failed to fetch fear and greed index data from API");
     }
