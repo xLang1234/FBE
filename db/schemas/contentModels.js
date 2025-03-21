@@ -42,6 +42,7 @@ const createContentModelsTable = async (pool) => {
       published_at TIMESTAMP WITH TIME ZONE NOT NULL,
       collected_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
       engagement_metrics JSONB,
+      language VARCHAR(100),
       raw_data JSONB
     )
   `);

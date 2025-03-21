@@ -61,13 +61,24 @@ if (process.env.NODE_ENV !== "production") {
   app.use("/api/admin/database", dbAdminRoutes);
   logger.warn("Database admin routes are enabled - disable in production!");
 }
+// Add this import near the top with other route imports
+const contentRoutes = require("./routes/content");
 
-// Database initialization endpoint
+// Add this import with other service imports
+const contentService = require("./services/contentService");
+
+// Add this line where routes are registered
+app.use("/api/content", contentRoutes);
+
+// Update the database initialization endpoint to include content models
 app.get("/api/init-db", async (req, res) => {
   logger.info("Database initialization requested");
 
   try {
     await db.initializeDatabase();
+
+    // Initialize content models tables
+    await contentService.initializeDatabase();
 
     // Initialize fear and greed index tables
     await fearAndGreedIndex.initializeDatabase();

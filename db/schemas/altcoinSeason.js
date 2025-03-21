@@ -15,6 +15,15 @@ const createAltcoinSeasonIndexTable = async (pool) => {
   await pool.query(`
         CREATE INDEX IF NOT EXISTS idx_altcoin_season_index_timestamp ON altcoin_season_index(timestamp);
       `);
+
+  // Create the last_update table for tracking update schedules
+  await pool.query(`
+        CREATE TABLE IF NOT EXISTS last_update (
+          update_type VARCHAR(50) PRIMARY KEY,
+          last_updated TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+          next_update TIMESTAMP WITH TIME ZONE NOT NULL
+        )
+      `);
 };
 
 module.exports = {
