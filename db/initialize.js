@@ -2,23 +2,22 @@ const logger = require("../config/logger");
 const { pool } = require("./connection");
 const { createAuthTables } = require("./schemas/auth");
 const { createPaymentsTables } = require("./schemas/payments");
-
-// In the initializeDatabase function
+const { DATABASE } = require("../constants/logMessages");
 
 const initializeDatabase = async () => {
   try {
-    logger.info("Starting database initialization");
+    logger.info(DATABASE.INIT_START);
 
     await createAuthTables(pool);
-    logger.info("Auth tables created");
+    logger.info(DATABASE.AUTH_TABLES_CREATED);
 
     await createPaymentsTables(pool);
-    logger.info("Payments tables created");
+    logger.info(DATABASE.PAYMENTS_TABLES_CREATED);
 
-    logger.info("Database initialization completed successfully");
+    logger.info(DATABASE.INIT_COMPLETE);
     return true;
   } catch (error) {
-    logger.error("Database initialization failed:", error);
+    logger.error(DATABASE.INIT_FAILURE, error);
     throw error;
   }
 };

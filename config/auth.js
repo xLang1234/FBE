@@ -1,26 +1,25 @@
 const { OAuth2Client } = require("google-auth-library");
 const logger = require("./logger");
+const { AUTH } = require("../constants/logMessages");
 
-// Initialize Google OAuth client
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 const client = new OAuth2Client(GOOGLE_CLIENT_ID);
 
-// Verify Google token
 async function verifyGoogleToken(token) {
   try {
-    logger.debug("Verifying Google token");
+    logger.debug(AUTH.GOOGLE_TOKEN_VERIFY);
     const ticket = await client.verifyIdToken({
       idToken: token,
       audience: GOOGLE_CLIENT_ID,
     });
     const payload = ticket.getPayload();
-    logger.info("Google token verified successfully", {
+    logger.info(AUTH.GOOGLE_TOKEN_VERIFIED, {
       userId: payload.sub,
       email: payload.email,
     });
     return payload;
   } catch (error) {
-    logger.error("Error verifying Google token:", error);
+    logger.error(AUTH.GOOGLE_TOKEN_ERROR, error);
     return null;
   }
 }

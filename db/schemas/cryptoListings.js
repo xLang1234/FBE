@@ -1,10 +1,7 @@
 // db/schemas/cryptoListings.js
+const logger = require("../../config/logger");
+const { CRYPTO, ERROR } = require("../../constants/logMessages");
 
-/**
- * Creates the cryptocurrencies table in PostgreSQL
- * @param {Object} pool - PostgreSQL connection pool
- * @returns {Promise} - Resolves when table is created
- */
 const createCryptocurrenciesTable = async (pool) => {
   try {
     await pool.query(`
@@ -20,23 +17,17 @@ const createCryptocurrenciesTable = async (pool) => {
         )
       `);
 
-    // Create indices for faster queries
     await pool.query(`
         CREATE INDEX IF NOT EXISTS idx_cryptocurrencies_symbol ON cryptocurrencies(symbol)
       `);
 
     return true;
   } catch (error) {
-    console.error("Error creating cryptocurrencies table:", error);
+    console.error(CRYPTO.TABLE_CREATE_ERROR("cryptocurrencies"), error);
     throw error;
   }
 };
 
-/**
- * Creates the cryptocurrency_prices table in PostgreSQL for time series data
- * @param {Object} pool - PostgreSQL connection pool
- * @returns {Promise} - Resolves when table is created
- */
 const createCryptocurrencyPricesTable = async (pool) => {
   try {
     await pool.query(`
@@ -73,16 +64,11 @@ const createCryptocurrencyPricesTable = async (pool) => {
 
     return true;
   } catch (error) {
-    console.error("Error creating cryptocurrency_prices table:", error);
+    console.error(CRYPTO.TABLE_CREATE_ERROR("cryptocurrency_prices"), error);
     throw error;
   }
 };
 
-/**
- * Creates the cryptocurrency_tags table in PostgreSQL
- * @param {Object} pool - PostgreSQL connection pool
- * @returns {Promise} - Resolves when table is created
- */
 const createCryptocurrencyTagsTable = async (pool) => {
   try {
     await pool.query(`
@@ -102,16 +88,11 @@ const createCryptocurrencyTagsTable = async (pool) => {
 
     return true;
   } catch (error) {
-    console.error("Error creating cryptocurrency_tags table:", error);
+    console.error(CRYPTO.TABLE_CREATE_ERROR("cryptocurrency_tags"), error);
     throw error;
   }
 };
 
-/**
- * Creates the cryptocurrency_listings_last_update table to track the last API call
- * @param {Object} pool - PostgreSQL connection pool
- * @returns {Promise} - Resolves when table is created
- */
 const createCryptoListingsLastUpdateTable = async (pool) => {
   try {
     await pool.query(`
@@ -126,24 +107,16 @@ const createCryptoListingsLastUpdateTable = async (pool) => {
     return true;
   } catch (error) {
     console.error(
-      "Error creating cryptocurrency_listings_last_update table:",
+      CRYPTO.TABLE_CREATE_ERROR("cryptocurrency_listings_last_update"),
       error
     );
     throw error;
   }
 };
 
-/**
- * Initialize all cryptocurrency tables in the correct order
- * @param {Object} pool - PostgreSQL connection pool
- * @returns {Promise} - Resolves when all tables are created
- */
 const initializeCryptoTables = async (pool) => {
   try {
-    const logger = require("../../config/logger");
-
-    // Drop tables if clean initialization is needed
-    logger.info("Dropping existing cryptocurrency tables");
+    logger.info(CRYPTO.TABLES_DROP);
     await pool.query(`DROP TABLE IF EXISTS cryptocurrency_prices CASCADE`);
     await pool.query(`DROP TABLE IF EXISTS cryptocurrency_tags CASCADE`);
     await pool.query(
@@ -151,23 +124,22 @@ const initializeCryptoTables = async (pool) => {
     );
     await pool.query(`DROP TABLE IF EXISTS cryptocurrencies CASCADE`);
 
-    // Create tables in the correct order
-    logger.info("Creating cryptocurrencies table");
+    logger.info(CRYPTO.TABLES_INIT_START);
     await createCryptocurrenciesTable(pool);
 
-    logger.info("Creating cryptocurrency_prices table");
+    logger.info(CRYPTO.TABLES_INIT_PRICES);
     await createCryptocurrencyPricesTable(pool);
 
-    logger.info("Creating cryptocurrency_tags table");
+    logger.info(CRYPTO.TABLES_INIT_TAGS);
     await createCryptocurrencyTagsTable(pool);
 
-    logger.info("Creating cryptocurrency_listings_last_update table");
+    logger.info(CRYPTO.TABLES_INIT_LAST_UPDATE);
     await createCryptoListingsLastUpdateTable(pool);
 
-    logger.info("All cryptocurrency tables created successfully");
+    logger.info(CRYPTO.TABLES_INIT_COMPLETE);
     return true;
   } catch (error) {
-    console.error("Error initializing crypto tables:", error);
+    console.error(CRYPTO.TABLES_INIT_FAILURE, error);
     throw error;
   }
 };

@@ -5,12 +5,13 @@
 
 const { pool } = require("./connection");
 const logger = require("../config/logger");
+const { DATABASE } = require("../constants/logMessages");
 
 const dropAllTables = async () => {
   const client = await pool.connect();
 
   try {
-    logger.warn("⚠️ WARNING: Dropping all tables from database!");
+    logger.warn(DATABASE.DROP_TABLES_WARNING);
 
     // Start a transaction
     await client.query("BEGIN");
@@ -28,33 +29,33 @@ const dropAllTables = async () => {
     const tables = tablesResult.rows.map((row) => row.tablename);
 
     if (tables.length === 0) {
-      logger.info("No tables found to drop");
+      logger.info(DATABASE.NO_TABLES_TO_DROP);
       await client.query("COMMIT");
       return {
         success: true,
-        message: "No tables found to drop",
+        message: DATABASE.NO_TABLES_TO_DROP,
         tablesDropped: [],
       };
     }
 
     // Drop all tables in a single command
-    logger.info(`Dropping ${tables.length} tables: ${tables.join(", ")}`);
+    logger.info(DATABASE.DROPPING_TABLES(tables.length, tables.join(", ")));
 
     await client.query(`DROP TABLE IF EXISTS ${tables.join(", ")} CASCADE`);
 
     // Commit the transaction
     await client.query("COMMIT");
 
-    logger.info("All tables dropped successfully");
+    logger.info(DATABASE.DROP_TABLES_SUCCESS);
     return {
       success: true,
-      message: "All tables dropped successfully",
+      message: DATABASE.DROP_TABLES_SUCCESS,
       tablesDropped: tables,
     };
   } catch (error) {
     // Rollback on error
     await client.query("ROLLBACK");
-    logger.error("Error dropping tables:", error);
+    logger.error(DATABASE.DROP_TABLES_ERROR, error);
     return {
       success: false,
       message: "Failed to drop tables",
@@ -76,7 +77,7 @@ if (require.main === module) {
       console.log(result);
       process.exit(0);
     } catch (error) {
-      console.error("Failed to drop tables:", error);
+      console.error(DATABASE.DROP_TABLES_ERROR, error);
       process.exit(1);
     } finally {
       // Close the pool

@@ -23,11 +23,6 @@ const createFearAndGreedIndexTable = async (pool) => {
     `);
 };
 
-/**
- * Creates the fear_and_greed_last_update table to track the last API call
- * @param {Object} pool - PostgreSQL connection pool
- * @returns {Promise} - Resolves when table is created
- */
 const createLastUpdateTable = async (pool) => {
   await pool.query(`
       CREATE TABLE IF NOT EXISTS fear_and_greed_last_update (

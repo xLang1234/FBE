@@ -1,7 +1,7 @@
 const { Pool } = require("pg");
 const logger = require("./logger");
+const { SERVER } = require("../constants/logMessages");
 
-// Initialize PostgreSQL connection pool
 const pool = new Pool({
   user: process.env.DB_USER,
   host: process.env.DB_HOST,
@@ -10,18 +10,17 @@ const pool = new Pool({
   port: process.env.DB_PORT || 5432,
 });
 
-// Log database connection
 pool.on("connect", () => {
-  logger.info("Connected to PostgreSQL database: " + process.env.DB_NAME);
+  logger.info(SERVER.DB_CONNECTED(process.env.DB_NAME));
 });
 
 pool.on("error", (err) => {
-  logger.error("PostgreSQL error:", err);
+  logger.error(SERVER.DB_CONNECTION_ERROR, err);
 });
 
 const initializeDbConnection = () => {
   pool.connect().catch((err) => {
-    logger.error("Failed to connect to database:", err);
+    logger.error(SERVER.DB_CONNECTION_FAILED, err);
   });
 };
 

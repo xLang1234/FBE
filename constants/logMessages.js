@@ -11,6 +11,9 @@ const SERVER = {
   DB_INIT_FAILURE: "Database initialization failed",
   DB_ADMIN_WARNING:
     "Database admin routes are enabled - disable in production!",
+  DB_CONNECTED: (dbName) => `Connected to PostgreSQL database: ${dbName}`,
+  DB_CONNECTION_ERROR: "PostgreSQL error:",
+  DB_CONNECTION_FAILED: "Failed to connect to database:",
 };
 
 // Service initialization messages
@@ -26,6 +29,7 @@ const SERVICE = {
   TELEGRAM_INIT_FAILURE: "Failed to initialize Telegram bot",
   TELEGRAM_DISABLED:
     "TELEGRAM_BOT_TOKEN not set, Telegram functionality disabled",
+  LOGGER_CONFIG: "Configuring logger with level:",
 };
 
 // Data fetch and processing messages
@@ -50,6 +54,9 @@ const AUTH = {
   GOOGLE_SUCCESS: "Google user updated successfully",
   GOOGLE_CREATE_SUCCESS: "Google user created successfully",
   GOOGLE_INVALID: "Invalid Google token received",
+  GOOGLE_TOKEN_VERIFY: "Verifying Google token",
+  GOOGLE_TOKEN_VERIFIED: "Google token verified successfully",
+  GOOGLE_TOKEN_ERROR: "Error verifying Google token:",
   LOGIN_SUCCESS: "User logged in successfully",
   SIGNUP_SUCCESS: "User registered successfully",
   INVALID_EMAIL: "Login attempt with non-existent email",
@@ -111,6 +118,27 @@ const CRYPTO = {
   CRYPTOCURRENCIES_SAVED: (count) =>
     `Saved ${count} cryptocurrencies to database`,
   PRICES_SAVED: (count) => `Saved latest prices for ${count} cryptocurrencies`,
+  TABLES_INIT_START: "Creating cryptocurrencies table",
+  TABLES_INIT_PRICES: "Creating cryptocurrency_prices table",
+  TABLES_INIT_TAGS: "Creating cryptocurrency_tags table",
+  TABLES_INIT_LAST_UPDATE: "Creating cryptocurrency_listings_last_update table",
+  TABLES_INIT_COMPLETE: "All cryptocurrency tables created successfully",
+  TABLES_DROP: "Dropping existing cryptocurrency tables",
+  TABLE_CREATE_ERROR: (table) => `Error creating ${table} table:`,
+};
+
+// Database messages
+const DATABASE = {
+  INIT_START: "Starting database initialization",
+  INIT_COMPLETE: "Database initialization completed successfully",
+  INIT_FAILURE: "Database initialization failed:",
+  AUTH_TABLES_CREATED: "Auth tables created",
+  PAYMENTS_TABLES_CREATED: "Payments tables created",
+  DROP_TABLES_WARNING: "⚠️ WARNING: Dropping all tables from database!",
+  NO_TABLES_TO_DROP: "No tables found to drop",
+  DROPPING_TABLES: (count, tables) => `Dropping ${count} tables: ${tables}`,
+  DROP_TABLES_SUCCESS: "All tables dropped successfully",
+  DROP_TABLES_ERROR: "Error dropping tables:",
 };
 
 // Error messages
@@ -146,4 +174,5 @@ module.exports = {
   CONTENT,
   CRYPTO,
   ERROR,
+  DATABASE,
 };
