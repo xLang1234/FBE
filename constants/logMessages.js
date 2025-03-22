@@ -67,6 +67,11 @@ const AUTH = {
   USERNAME_TAKEN: "Username already taken",
   ROLE_UPDATED: "User role updated successfully",
   INVALID_ROLE: "Attempted to assign invalid role",
+  LOGIN_REQUEST: "Received traditional login request",
+  SIGNUP_REQUEST: (email) => `Received traditional signup request for ${email}`,
+  GOOGLE_AUTH_REQUEST: "Received Google authentication request",
+  LOGOUT_REQUEST: "Received logout request",
+  LOGOUT_SUCCESS: "User logged out successfully",
 };
 
 // Content management messages
@@ -90,6 +95,17 @@ const CONTENT = {
   CONTENT_DELETED: (id) => `Content with ID ${id} deleted successfully`,
   ENTITY_DELETED: (id) =>
     `Entity with ID ${id} and all related content deleted successfully`,
+  FETCH_SOURCES: "Fetching content sources",
+  FETCH_ENTITIES: "Fetching content entities",
+  FETCH_ENTITIES_BY_SOURCE: (sourceType) =>
+    `Fetching content entities for source type: ${sourceType}`,
+  STORE_RAW_CONTENT: (entityId) =>
+    `Storing raw content for entity ID ${entityId}`,
+  STORE_PROCESSED_CONTENT: (rawContentId) =>
+    `Storing processed content for raw content ID ${rawContentId}`,
+  FETCH_UNPROCESSED_CONTENT: "Fetching unprocessed content",
+  FETCH_CONTENT_METRICS: "Fetching content with metrics",
+  FETCH_METRICS_BY_CATEGORY: "Fetching metrics by category",
 };
 
 // Cryptocurrency service messages
@@ -125,6 +141,17 @@ const CRYPTO = {
   TABLES_INIT_COMPLETE: "All cryptocurrency tables created successfully",
   TABLES_DROP: "Dropping existing cryptocurrency tables",
   TABLE_CREATE_ERROR: (table) => `Error creating ${table} table:`,
+  FETCH_TOP_CRYPTO: (limit, offset) =>
+    `Fetching top ${limit} cryptocurrencies with offset ${offset}`,
+  FETCH_CRYPTO_BY_SYMBOL: (symbol) =>
+    `Fetching cryptocurrency data for symbol ${symbol}`,
+  FETCH_HISTORICAL_CRYPTO: (days, symbol) =>
+    `Fetching ${days} days of historical data for ${symbol}`,
+  ANALYZE_MARKET_DATA: (limit) =>
+    `Analyzing market data for top ${limit} cryptocurrencies`,
+  FORCE_UPDATE_CRYPTO: "Admin requested force update of cryptocurrency data",
+  DAILY_SUMMARY_ERROR: "Error sending daily summary",
+  DAILY_SUMMARY_SUCCESS: "Daily summary sent successfully",
 };
 
 // Database messages
@@ -164,6 +191,19 @@ const ERROR = {
   CONTENT_GET_UNPROCESSED: "Error getting unprocessed content:",
   CONTENT_DELETE: (id) => `Error deleting content with ID ${id}:`,
   ROLE_CHANGE: "Error changing user role:",
+  FETCH_USERS: "Error fetching users:",
+  GOOGLE_AUTH: "Google authentication error:",
+  SIGNUP: "Signup error:",
+  LOGIN: "Login error:",
+  LOGOUT: "Logout error:",
+  ALTCOIN_SEASON_HISTORICAL: "Error in historical altcoin season endpoint:",
+  ALTCOIN_SEASON_LATEST: "Error in latest altcoin season endpoint:",
+  ALTCOIN_SEASON_ANALYSIS: "Error in altcoin season analysis endpoint:",
+  ALTCOIN_SEASON_UPDATE: "Error in force update endpoint:",
+  FEAR_GREED_HISTORICAL: "Error in historical fear and greed index endpoint:",
+  FEAR_GREED_LATEST: "Error in latest fear and greed index endpoint:",
+  FEAR_GREED_ANALYSIS: "Error in fear and greed index analysis endpoint:",
+  FEAR_GREED_UPDATE: "Error in force update endpoint:",
 };
 
 // Sentiment analysis messages
@@ -183,6 +223,12 @@ const SENTIMENT = {
   TABLE_CREATE_ERROR: (table) => `Error creating ${table} table:`,
   API_FETCH_ERROR: "Error fetching sentiment data from API:",
   API_NO_DATA: "No data returned from sentiment API",
+  FETCH_HISTORICAL: (days) =>
+    `Fetching ${days} days of historical fear and greed index data from database`,
+  FETCH_LATEST: "Fetching latest fear and greed index data from database",
+  ANALYZE_DATA: (days) =>
+    `Analyzing fear and greed index data for the last ${days} days from database`,
+  FORCE_UPDATE: "Admin requested force update of fear and greed index data",
 };
 
 // Feedback messages
@@ -221,6 +267,37 @@ const ENTITY = {
   STATUS_CHANGE: (id, status) => `Entity ID ${id} status changed to ${status}`,
 };
 
+// Admin messages
+const ADMIN = {
+  FETCH_USERS: "Fetching users",
+  ROLE_CHANGE_REQUEST: (userId, role) =>
+    `User ${userId} role change requested to ${role}`,
+  ROLE_CHANGE_SUCCESS: "Role updated successfully",
+};
+
+// Altcoin season messages
+const ALTCOIN = {
+  FETCH_HISTORICAL: (days) =>
+    `Fetching ${days} days of historical altcoin season data from database`,
+  FETCH_LATEST: "Fetching latest altcoin season data from database",
+  ANALYZE_DATA: (days) =>
+    `Analyzing altcoin season data for the last ${days} days from database`,
+  FORCE_UPDATE: "Admin requested force update of altcoin season data",
+  UPDATE_SUCCESS: "Altcoin season data update triggered successfully",
+  TABLES_INIT_START: "Creating altcoin_season_index table",
+  TABLES_INIT_LAST_UPDATE:
+    "Creating last_update table for altcoin season tracking",
+  TABLES_INIT_COMPLETE: "All altcoin season tables created successfully",
+  INDEX_SAVED: (count) => `Saved ${count} altcoin season index records`,
+  UPDATE_CHECK_ERROR: "Error checking if altcoin season update is needed:",
+  LAST_UPDATE_ERROR: "Error updating altcoin season last_update record:",
+  HISTORICAL_DATA_ERROR: "Error fetching historical altcoin season data:",
+  LATEST_DATA_ERROR: "Error fetching latest altcoin season data:",
+  ANALYSIS_ERROR: "Error analyzing altcoin season data:",
+  NEXT_UPDATE_SCHEDULED: (timestamp) =>
+    `Next altcoin season update scheduled for ${timestamp}`,
+};
+
 module.exports = {
   SERVER,
   SERVICE,
@@ -233,4 +310,6 @@ module.exports = {
   SENTIMENT,
   FEEDBACK,
   ENTITY,
+  ADMIN,
+  ALTCOIN,
 };

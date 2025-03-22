@@ -7,12 +7,13 @@ const {
   processLogin,
 } = require("../services/authService");
 const { invalidateSession } = require("../utils/sessionUtils");
+const { AUTH, ERROR } = require("../constants/logMessages");
 
 // Google sign-in endpoint
 router.post("/google", async (req, res) => {
   const { token } = req.body;
 
-  logger.debug("Received Google authentication request");
+  logger.debug(AUTH.GOOGLE_AUTH_REQUEST);
 
   try {
     const result = await processGoogleSignIn(token);
@@ -23,7 +24,7 @@ router.post("/google", async (req, res) => {
 
     res.status(200).json(result);
   } catch (error) {
-    logger.error("Google authentication error:", error);
+    logger.error(ERROR.GOOGLE_AUTH, error);
     res.status(500).json({ error: "Authentication failed" });
   }
 });
@@ -32,7 +33,7 @@ router.post("/google", async (req, res) => {
 router.post("/signup", async (req, res) => {
   const { username, email, password } = req.body;
 
-  logger.debug("Received traditional signup request", { email });
+  logger.debug(AUTH.SIGNUP_REQUEST(email));
 
   try {
     const result = await processSignup(username, email, password);
@@ -43,7 +44,7 @@ router.post("/signup", async (req, res) => {
 
     res.status(201).json(result);
   } catch (error) {
-    logger.error("Signup error:", error);
+    logger.error(ERROR.SIGNUP, error);
     res.status(500).json({ error: "Registration failed" });
   }
 });
@@ -52,7 +53,7 @@ router.post("/signup", async (req, res) => {
 router.post("/login", async (req, res) => {
   const { email, password } = req.body;
 
-  logger.debug("Received traditional login request");
+  logger.debug(AUTH.LOGIN_REQUEST);
 
   try {
     const result = await processLogin(email, password);
@@ -63,7 +64,7 @@ router.post("/login", async (req, res) => {
 
     res.status(200).json(result);
   } catch (error) {
-    logger.error("Login error:", error);
+    logger.error(ERROR.LOGIN, error);
     res.status(500).json({ error: "Login failed" });
   }
 });
@@ -72,15 +73,15 @@ router.post("/login", async (req, res) => {
 router.post("/logout", async (req, res) => {
   const { sessionToken } = req.body;
 
-  logger.debug("Received logout request");
+  logger.debug(AUTH.LOGOUT_REQUEST);
 
   try {
     await invalidateSession(sessionToken);
 
-    logger.info("User logged out successfully");
+    logger.info(AUTH.LOGOUT_SUCCESS);
     res.status(200).json({ message: "Logged out successfully" });
   } catch (error) {
-    logger.error("Logout error:", error);
+    logger.error(ERROR.LOGOUT, error);
     res.status(500).json({ error: "Logout failed" });
   }
 });

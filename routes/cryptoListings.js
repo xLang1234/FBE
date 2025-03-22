@@ -3,82 +3,57 @@ const express = require("express");
 const router = express.Router();
 const cryptoListings = require("../services/cryptoListings");
 const logger = require("../config/logger");
+const { CRYPTO, ERROR } = require("../constants/logMessages");
 
-/**
- * @route   GET /api/crypto/listings/top
- * @desc    Get top cryptocurrencies by market cap
- * @access  Public
- */
 router.get("/listings/top", async (req, res) => {
   try {
     const limit = parseInt(req.query.limit) || 10;
     const offset = parseInt(req.query.offset) || 0;
 
-    logger.info(`Fetching top ${limit} cryptocurrencies with offset ${offset}`);
+    logger.info(CRYPTO.FETCH_TOP_CRYPTO(limit, offset));
     const data = await cryptoListings.getTopCryptocurrencies(limit, offset);
 
     res.json(data);
   } catch (error) {
-    logger.error("Error in top cryptocurrencies endpoint:", error);
+    logger.error(CRYPTO.TOP_CRYPTO_ERROR, error);
     res.status(500).json({ error: error.message });
   }
 });
 
-/**
- * @route   GET /api/crypto/listings/symbol/:symbol
- * @desc    Get cryptocurrency data by symbol
- * @access  Public
- */
 router.get("/listings/symbol/:symbol", async (req, res) => {
   try {
     const symbol = req.params.symbol;
 
-    logger.info(`Fetching cryptocurrency data for symbol ${symbol}`);
+    logger.info(CRYPTO.FETCH_CRYPTO_BY_SYMBOL(symbol));
     const data = await cryptoListings.getCryptocurrencyBySymbol(symbol);
 
     res.json(data);
   } catch (error) {
-    logger.error(
-      `Error in cryptocurrency by symbol endpoint for ${req.params.symbol}:`,
-      error
-    );
+    logger.error(CRYPTO.SYMBOL_FETCH_ERROR(req.params.symbol), error);
     res.status(404).json({ error: error.message });
   }
 });
 
-/**
- * @route   GET /api/crypto/listings/historical/:symbol
- * @desc    Get historical price data for a cryptocurrency
- * @access  Public
- */
 router.get("/listings/historical/:symbol", async (req, res) => {
   try {
     const symbol = req.params.symbol;
     const days = parseInt(req.query.days) || 30;
 
-    logger.info(`Fetching ${days} days of historical data for ${symbol}`);
+    logger.info(CRYPTO.FETCH_HISTORICAL_CRYPTO(days, symbol));
     const data = await cryptoListings.getHistoricalPrices(symbol, days);
 
     res.json(data);
   } catch (error) {
-    logger.error(
-      `Error in historical prices endpoint for ${req.params.symbol}:`,
-      error
-    );
+    logger.error(CRYPTO.HISTORICAL_PRICES_ERROR(req.params.symbol), error);
     res.status(404).json({ error: error.message });
   }
 });
 
-/**
- * @route   GET /api/crypto/listings/market-analysis
- * @desc    Get market analysis based on top cryptocurrencies
- * @access  Public
- */
 router.get("/listings/market-analysis", async (req, res) => {
   try {
     const limit = parseInt(req.query.limit) || 100;
 
-    logger.info(`Analyzing market data for top ${limit} cryptocurrencies`);
+    logger.info(CRYPTO.ANALYZE_MARKET_DATA(limit));
     const topCryptos = await cryptoListings.getTopCryptocurrencies(limit);
     const analysis = cryptoListings.analyzeCryptocurrencyData(topCryptos.data);
 
@@ -87,19 +62,14 @@ router.get("/listings/market-analysis", async (req, res) => {
       status: topCryptos.status,
     });
   } catch (error) {
-    logger.error("Error in market analysis endpoint:", error);
+    logger.error(CRYPTO.ANALYSIS_ERROR, error);
     res.status(500).json({ error: error.message });
   }
 });
 
-/**
- * @route   GET /api/crypto/listings/force-update
- * @desc    Force an update from the CoinMarketCap API (admin only)
- * @access  Private/Admin
- */
 router.get("/listings/force-update", async (req, res) => {
   try {
-    logger.info("Admin requested force update of cryptocurrency data");
+    logger.info(CRYPTO.FORCE_UPDATE_CRYPTO);
     await cryptoListings.updateCryptocurrencyData();
 
     res.json({
@@ -108,7 +78,7 @@ router.get("/listings/force-update", async (req, res) => {
       timestamp: new Date().toISOString(),
     });
   } catch (error) {
-    logger.error("Error in force update endpoint:", error);
+    logger.error(ERROR.FEAR_GREED_UPDATE, error);
     res.status(500).json({ error: error.message });
   }
 });
