@@ -1,16 +1,9 @@
-// routes/content.js
 const express = require("express");
 const router = express.Router();
 const contentService = require("../services/contentService");
 const logger = require("../config/logger");
-const { authorize } = require("../middleware/authorize");
-const { requireRole } = require("../middleware/authorize");
+const { authorize, requireRole } = require("../middleware/authorize");
 
-/**
- * @route   GET /api/content/sources
- * @desc    Get all content sources
- * @access  Private/Admin
- */
 router.get("/sources", authorize, requireRole(["admin"]), async (req, res) => {
   try {
     const { type, isActive } = req.query;
@@ -28,11 +21,6 @@ router.get("/sources", authorize, requireRole(["admin"]), async (req, res) => {
   }
 });
 
-/**
- * @route   POST /api/content/sources
- * @desc    Create a new content source
- * @access  Private/Admin
- */
 router.post("/sources", authorize, requireRole(["admin"]), async (req, res) => {
   try {
     const { name, type, apiEndpoint, credentialsId, isActive } = req.body;
@@ -60,11 +48,6 @@ router.post("/sources", authorize, requireRole(["admin"]), async (req, res) => {
   }
 });
 
-/**
- * @route   PUT /api/content/sources/:id
- * @desc    Update a content source
- * @access  Private/Admin
- */
 router.put(
   "/sources/:id",
   authorize,
@@ -92,11 +75,6 @@ router.put(
   }
 );
 
-/**
- * @route   GET /api/content/entities
- * @desc    Get all entities
- * @access  Private
- */
 router.get("/entities", authorize, async (req, res) => {
   try {
     const {
@@ -127,11 +105,6 @@ router.get("/entities", authorize, async (req, res) => {
   }
 });
 
-/**
- * @route   GET /api/content/entities/by-source-type/:type
- * @desc    Get all entities by source type
- * @access  Private
- */
 router.get("/entities/by-source-type/:type", authorize, async (req, res) => {
   try {
     const sourceType = req.params.type;
@@ -149,11 +122,6 @@ router.get("/entities/by-source-type/:type", authorize, async (req, res) => {
   }
 });
 
-/**
- * @route   POST /api/content/entities
- * @desc    Create a new entity
- * @access  Private/Admin
- */
 router.post(
   "/entities",
   authorize,
@@ -202,11 +170,6 @@ router.post(
   }
 );
 
-/**
- * @route   POST /api/content/raw
- * @desc    Store raw content
- * @access  Private/Admin
- */
 router.post("/raw", authorize, requireRole(["admin"]), async (req, res) => {
   try {
     const {
@@ -249,11 +212,6 @@ router.post("/raw", authorize, requireRole(["admin"]), async (req, res) => {
   }
 });
 
-/**
- * @route   POST /api/content/processed
- * @desc    Store processed content
- * @access  Private/Admin
- */
 router.post(
   "/processed",
   authorize,
@@ -302,11 +260,6 @@ router.post(
   }
 );
 
-/**
- * @route   GET /api/content/unprocessed
- * @desc    Get unprocessed content
- * @access  Private/Admin
- */
 router.get(
   "/unprocessed",
   authorize,
@@ -328,11 +281,6 @@ router.get(
   }
 );
 
-/**
- * @route   GET /api/content/metrics
- * @desc    Get content with metrics
- * @access  Private
- */
 router.get("/metrics", authorize, async (req, res) => {
   try {
     const {
@@ -367,11 +315,6 @@ router.get("/metrics", authorize, async (req, res) => {
   }
 });
 
-/**
- * @route   GET /api/content/metrics/by-category
- * @desc    Get metrics grouped by category
- * @access  Private
- */
 router.get("/metrics/by-category", authorize, async (req, res) => {
   try {
     const { entityId, contentType, startDate, endDate } = req.query;
@@ -391,11 +334,6 @@ router.get("/metrics/by-category", authorize, async (req, res) => {
   }
 });
 
-/**
- * @route   DELETE /api/content/raw/:id
- * @desc    Delete raw content and related processed content
- * @access  Private/Admin
- */
 router.delete(
   "/raw/:id",
   authorize,
@@ -422,11 +360,6 @@ router.delete(
   }
 );
 
-/**
- * @route   DELETE /api/content/entities/:id
- * @desc    Delete entity and all related content
- * @access  Private/Admin
- */
 router.delete(
   "/entities/:id",
   authorize,

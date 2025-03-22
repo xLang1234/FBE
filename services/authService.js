@@ -1,12 +1,9 @@
-// services/authService.js
-
 const bcrypt = require("bcrypt");
 const logger = require("../config/logger");
 const { pool } = require("../config/db");
 const { createSession } = require("../utils/sessionUtils");
 const { verifyGoogleToken } = require("../config/auth");
 
-// Save or update Google user in database
 async function saveGoogleUser(userData) {
   const { sub, email, name, picture } = userData;
 
@@ -15,14 +12,12 @@ async function saveGoogleUser(userData) {
       googleId: sub,
     });
 
-    // Check if user exists by Google ID
     const checkResult = await pool.query(
       "SELECT u.*, r.name as role_name FROM users u JOIN roles r ON u.role_id = r.id WHERE u.google_id = $1",
       [sub]
     );
 
     if (checkResult.rows.length > 0) {
-      // Update existing user
       logger.info("Updating existing Google user in database", {
         googleId: sub,
         email,
@@ -33,7 +28,6 @@ async function saveGoogleUser(userData) {
         [email, name, picture, sub]
       );
 
-      // Get role information
       const roleResult = await pool.query(
         "SELECT r.name FROM roles r JOIN users u ON r.id = u.role_id WHERE u.id = $1",
         [updateResult.rows[0].id]
@@ -52,14 +46,12 @@ async function saveGoogleUser(userData) {
 
       return user;
     } else {
-      // Check if user exists by email (might have registered with email/password)
       const emailCheckResult = await pool.query(
         "SELECT u.*, r.name as role_name FROM users u JOIN roles r ON u.role_id = r.id WHERE u.email = $1",
         [email]
       );
 
       if (emailCheckResult.rows.length > 0) {
-        // Update existing user to link Google account
         logger.info("Linking Google account to existing user", {
           email,
           googleId: sub,
@@ -77,13 +69,11 @@ async function saveGoogleUser(userData) {
 
         return user;
       } else {
-        // Create new user
         logger.info("Creating new Google user in database", {
           googleId: sub,
           email,
         });
 
-        // Get role ID for basic role (id = 1)
         const basicRoleId = 1;
 
         const insertResult = await pool.query(
@@ -93,7 +83,7 @@ async function saveGoogleUser(userData) {
 
         const user = {
           ...insertResult.rows[0],
-          role: "basic", // Default role for new users
+          role: "basic",
         };
 
         logger.debug("Google user created successfully", {
@@ -113,9 +103,7 @@ async function saveGoogleUser(userData) {
   }
 }
 
-// Process Google sign-in
 async function processGoogleSignIn(token) {
-  // Verify the token
   const payload = await verifyGoogleToken(token);
 
   if (!payload) {
@@ -123,10 +111,8 @@ async function processGoogleSignIn(token) {
     return null;
   }
 
-  // Save or update user in database
   const user = await saveGoogleUser(payload);
 
-  // Create session
   const sessionToken = await createSession(user.id);
 
   logger.info("User authenticated successfully via Google", {
@@ -147,15 +133,12 @@ async function processGoogleSignIn(token) {
   };
 }
 
-// Process traditional signup
 async function processSignup(username, email, password) {
-  // Validate input
   if (!username || !email || !password) {
     logger.warn("Incomplete signup data received");
     return { error: "All fields are required", status: 400 };
   }
 
-  // Check if email already exists
   const emailCheck = await pool.query("SELECT * FROM users WHERE email = $1", [
     email,
   ]);
@@ -164,7 +147,6 @@ async function processSignup(username, email, password) {
     return { error: "Email already in use", status: 400 };
   }
 
-  // Check if username already exists
   const usernameCheck = await pool.query(
     "SELECT * FROM users WHERE username = $1",
     [username]
@@ -174,14 +156,11 @@ async function processSignup(username, email, password) {
     return { error: "Username already taken", status: 400 };
   }
 
-  // Hash password
   const saltRounds = 10;
   const hashedPassword = await bcrypt.hash(password, saltRounds);
 
-  // Get role ID for basic role (id = 1)
   const basicRoleId = 1;
 
-  // Create user
   const result = await pool.query(
     "INSERT INTO users (username, email, password_hash, name, role_id, created_at, last_login) VALUES ($1, $2, $3, $4, $5, NOW(), NOW()) RETURNING *",
     [username, email, hashedPassword, username, basicRoleId]
@@ -189,7 +168,6 @@ async function processSignup(username, email, password) {
 
   const user = result.rows[0];
 
-  // Create session
   const sessionToken = await createSession(user.id);
 
   logger.info("User registered successfully", { userId: user.id, email });
@@ -200,15 +178,13 @@ async function processSignup(username, email, password) {
       username: user.username,
       name: user.name,
       email: user.email,
-      role: "basic", // Default role for new users
+      role: "basic",
     },
     sessionToken,
   };
 }
 
-// Process traditional login
 async function processLogin(email, password) {
-  // Find user by email
   const result = await pool.query(
     `SELECT u.*, r.name as role_name 
      FROM users u 
@@ -224,13 +200,11 @@ async function processLogin(email, password) {
 
   const user = result.rows[0];
 
-  // If user doesn't have a password (Google-only account)
   if (!user.password_hash) {
     logger.warn("Login attempt to Google-only account", { email });
     return { error: "Please login with Google", status: 401 };
   }
 
-  // Compare password
   const passwordMatch = await bcrypt.compare(password, user.password_hash);
 
   if (!passwordMatch) {
@@ -238,12 +212,10 @@ async function processLogin(email, password) {
     return { error: "Invalid credentials", status: 401 };
   }
 
-  // Update last login
   await pool.query("UPDATE users SET last_login = NOW() WHERE id = $1", [
     user.id,
   ]);
 
-  // Create session
   const sessionToken = await createSession(user.id);
 
   logger.info("User logged in successfully", {
@@ -265,10 +237,8 @@ async function processLogin(email, password) {
   };
 }
 
-// Change user role
 async function changeUserRole(userId, roleName) {
   try {
-    // Get role ID
     const roleResult = await pool.query(
       "SELECT id FROM roles WHERE name = $1",
       [roleName]
@@ -281,7 +251,6 @@ async function changeUserRole(userId, roleName) {
 
     const roleId = roleResult.rows[0].id;
 
-    // Update user role
     await pool.query("UPDATE users SET role_id = $1 WHERE id = $2", [
       roleId,
       userId,

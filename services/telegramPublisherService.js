@@ -1,5 +1,3 @@
-// services/telegramPublisherService.js
-
 const logger = require("../config/logger");
 const { pool } = require("../db");
 const telegramService = require("./telegram");
@@ -11,10 +9,6 @@ class TelegramPublisherService {
     this.isRunning = false;
   }
 
-  /**
-   * Start the polling service
-   * @param {number} intervalMs - Polling interval in milliseconds (default: 60000 ms = 1 minute)
-   */
   startPolling(intervalMs = 60000) {
     if (this.isRunning) {
       logger.info("Telegram publisher is already running");
@@ -26,10 +20,8 @@ class TelegramPublisherService {
     );
     this.isRunning = true;
 
-    // Initialize the last published ID
     this.initializeLastPublishedId()
       .then(() => {
-        // Start the polling interval
         this.pollingInterval = setInterval(() => {
           this.checkAndPublishNewContent().catch((error) => {
             logger.error("Error in Telegram publisher polling:", error);
@@ -42,9 +34,6 @@ class TelegramPublisherService {
       });
   }
 
-  /**
-   * Stop the polling service
-   */
   stopPolling() {
     if (this.pollingInterval) {
       clearInterval(this.pollingInterval);
@@ -54,12 +43,8 @@ class TelegramPublisherService {
     }
   }
 
-  /**
-   * Initialize the last published ID from the database or create tracking table if needed
-   */
   async initializeLastPublishedId() {
     try {
-      // Check if tracking table exists
       const tableCheck = await pool.query(`
         SELECT EXISTS (
           SELECT FROM information_schema.tables 
@@ -70,7 +55,6 @@ class TelegramPublisherService {
       const tableExists = tableCheck.rows[0].exists;
 
       if (!tableExists) {
-        // Create tracking table
         await pool.query(`
           CREATE TABLE telegram_publishing_tracking (
             id SERIAL PRIMARY KEY,
@@ -86,7 +70,6 @@ class TelegramPublisherService {
         logger.info("Created telegram publishing tracking table");
         this.lastPublishedId = 0;
       } else {
-        // Get the last published ID
         const result = await pool.query(`
           SELECT last_published_id FROM telegram_publishing_tracking 
           ORDER BY id DESC LIMIT 1;
@@ -103,10 +86,6 @@ class TelegramPublisherService {
     }
   }
 
-  /**
-   * Update the last published ID in the database
-   * @param {number} id - The new last published ID
-   */
   async updateLastPublishedId(id) {
     try {
       await pool.query(
@@ -126,48 +105,34 @@ class TelegramPublisherService {
     }
   }
 
-  /**
-   * Format content for Telegram message
-   * @param {Object} content - The content object
-   * @param {Object} entity - The entity object
-   * @returns {string|null} - Formatted message or null if should be skipped
-   */
   formatMessage(content, entity) {
-    // Skip content without summary
     if (!content.summary) {
       return null;
     }
 
-    // Create header with entity name and username as a clickable link if possible
     let message = "";
 
-    // Add entity name with link if username is available
     if (entity.username) {
       message += `<b><a href="https://t.me/${entity.username}">${entity.name}</a></b>\n\n`;
     } else {
       message += `<b>${entity.name}</b>\n\n`;
     }
 
-    // Add summary
     message += `${content.summary}\n\n`;
 
-    // Add source link if external_id contains a URL or can be formed into one
     if (content.external_id) {
       let sourceUrl = "";
 
-      // Handle different source types to create appropriate links
       if (
         content.content_type === "twitter" ||
         content.content_type === "tweet"
       ) {
         sourceUrl = `https://twitter.com/i/status/${content.external_id}`;
       } else if (content.content_type === "telegram") {
-        // For telegram content, you might need a different format depending on how you store external_id
         sourceUrl = content.external_id.startsWith("https://")
           ? content.external_id
           : `https://t.me/c/${content.external_id}`;
       } else if (content.external_id.startsWith("http")) {
-        // If it's already a URL
         sourceUrl = content.external_id;
       }
 
@@ -179,11 +144,6 @@ class TelegramPublisherService {
     return message;
   }
 
-  /**
-   * Get a label for sentiment score
-   * @param {number} score - Sentiment score (typically -1 to 1)
-   * @returns {string} - Sentiment label
-   */
   getSentimentLabel(score) {
     if (score >= 0.7) return "Very Positive";
     if (score >= 0.3) return "Positive";
@@ -192,21 +152,16 @@ class TelegramPublisherService {
     return "Very Negative";
   }
 
-  /**
-   * Check for new content and publish to Telegram
-   */
   async checkAndPublishNewContent() {
     try {
       logger.debug("Checking for new processed content...");
 
-      // Update the check time even if we don't publish anything
       await pool.query(`
         UPDATE telegram_publishing_tracking 
         SET last_check_time = NOW() 
         WHERE id = (SELECT id FROM telegram_publishing_tracking ORDER BY id DESC LIMIT 1);
       `);
 
-      // Get new processed content with entity information
       const result = await pool.query(
         `
         SELECT 
@@ -248,7 +203,6 @@ class TelegramPublisherService {
       let successCount = 0;
       let lastPublishedId = this.lastPublishedId;
 
-      // Publish each content item
       for (const row of result.rows) {
         try {
           const entity = {
@@ -271,19 +225,16 @@ class TelegramPublisherService {
             summary: row.summary,
           };
 
-          // Format message for Telegram
           const message = this.formatMessage(content, entity);
 
-          // Skip if message is null (no summary)
           if (message === null) {
             logger.debug(
               `Skipping content ID ${row.id} due to missing summary`
             );
-            lastPublishedId = row.id; // Still update the last published ID to avoid reprocessing
+            lastPublishedId = row.id;
             continue;
           }
 
-          // Broadcast message to all registered Telegram chats
           const broadcastResult =
             await telegramService.broadcastMessage(message);
 
@@ -301,7 +252,6 @@ class TelegramPublisherService {
         }
       }
 
-      // Update the last published ID if we successfully published anything
       if (successCount > 0 || lastPublishedId > this.lastPublishedId) {
         await this.updateLastPublishedId(lastPublishedId);
         logger.info(`Published ${successCount} content items to Telegram`);
@@ -311,105 +261,7 @@ class TelegramPublisherService {
       throw error;
     }
   }
-
-  /**
-   * Force publish a specific content item
-   * @param {number} contentId - The processed content ID to publish
-   */
-  async forcePublishContent(contentId) {
-    try {
-      // Get the content item
-      const result = await pool.query(
-        `
-        SELECT 
-          pc.id, 
-          pc.raw_content_id,
-          pc.sentiment_score,
-          pc.impact_score, 
-          pc.categories,
-          pc.keywords,
-          pc.summary,
-          rc.external_id,
-          rc.content,
-          rc.entity_id,
-          rc.published_at,
-          rc.content_type,
-          e.name AS entity_name,
-          e.username AS entity_username,
-          e.description AS entity_description,
-          s.name AS source_name,
-          s.type AS source_type
-        FROM processed_content pc
-        JOIN raw_content rc ON pc.raw_content_id = rc.id
-        JOIN entities e ON rc.entity_id = e.id
-        JOIN sources s ON e.source_id = s.id
-        WHERE pc.id = $1;
-      `,
-        [contentId]
-      );
-
-      if (result.rows.length === 0) {
-        logger.warn(`Content ID ${contentId} not found`);
-        return false;
-      }
-
-      const row = result.rows[0];
-
-      const entity = {
-        name: row.entity_name,
-        username: row.entity_username,
-        description: row.entity_description,
-      };
-
-      const content = {
-        id: row.id,
-        raw_content_id: row.raw_content_id,
-        external_id: row.external_id,
-        content: row.content,
-        published_at: row.published_at,
-        content_type: row.content_type,
-        sentiment_score: row.sentiment_score,
-        impact_score: row.impact_score,
-        categories: row.categories,
-        keywords: row.keywords,
-        summary: row.summary,
-      };
-
-      // Format message for Telegram
-      const message = this.formatMessage(content, entity);
-
-      // Skip if message is null (no summary)
-      if (message === null) {
-        logger.warn(
-          `Skipping force publish of content ID ${contentId} due to missing summary`
-        );
-        return false;
-      }
-
-      // Broadcast message to all registered Telegram chats
-      const broadcastResult = await telegramService.broadcastMessage(message);
-
-      if (broadcastResult.success > 0) {
-        // Update last published ID if this is newer
-        if (row.id > this.lastPublishedId) {
-          await this.updateLastPublishedId(row.id);
-        }
-
-        logger.info(
-          `Force published content ID ${row.id} to ${broadcastResult.success} chats`
-        );
-        return true;
-      } else {
-        logger.warn(`Failed to force publish content ID ${row.id} to any chat`);
-        return false;
-      }
-    } catch (error) {
-      logger.error(`Error force publishing content ID ${contentId}:`, error);
-      return false;
-    }
-  }
 }
 
-// Create and export a singleton instance
 const telegramPublisherService = new TelegramPublisherService();
 module.exports = telegramPublisherService;

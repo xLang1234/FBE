@@ -116,40 +116,5 @@ router.post(
   }
 );
 
-/**
- * Force publish a specific content
- * @route POST /api/telegram-publisher/publish/:id
- * @access Admin
- */
-router.post(
-  "/publish/:id",
-  authorize,
-  requireRole(["admin"]),
-  async (req, res) => {
-    try {
-      const contentId = parseInt(req.params.id);
-
-      if (isNaN(contentId)) {
-        return res.status(400).json({ error: "Invalid content ID" });
-      }
-
-      const success =
-        await telegramPublisherService.forcePublishContent(contentId);
-
-      if (success) {
-        res.status(200).json({
-          message: `Content ID ${contentId} published successfully`,
-        });
-      } else {
-        res.status(404).json({
-          error: `Failed to publish content ID ${contentId}`,
-        });
-      }
-    } catch (error) {
-      logger.error(`Error publishing content ID ${req.params.id}:`, error);
-      res.status(500).json({ error: "Failed to publish content" });
-    }
-  }
-);
 
 module.exports = router;

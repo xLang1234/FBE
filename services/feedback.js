@@ -1,4 +1,3 @@
-// services/feedback.js
 const logger = require("../config/logger");
 const { pool } = require("../db");
 const FeedbackRepository = require("../repositories/feedbackRepository");
@@ -24,12 +23,10 @@ class FeedbackService {
     try {
       const { userId, feedbackType, content, rating, source } = feedbackData;
 
-      // Validate input
       if (!feedbackType || !content) {
         throw new Error("Feedback type and content are required");
       }
 
-      // Validate rating if provided
       if (
         rating !== undefined &&
         (rating < 1 || rating > 5 || !Number.isInteger(rating))
@@ -93,7 +90,6 @@ class FeedbackService {
 
   async updateFeedback(id, updates) {
     try {
-      // Validate rating if provided
       if (
         updates.rating !== undefined &&
         (updates.rating < 1 ||
