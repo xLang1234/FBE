@@ -9,12 +9,14 @@ class CryptoListingsService {
   constructor() {
     this.baseUrl = "https://pro-api.coinmarketcap.com/v1";
     this.updateInterval = 20;
+    this.defaultLimit = 200;
   }
 
   async initializeDatabase() {
     try {
       const client = await pool.connect();
       await initializeCryptoTables(client);
+      client.release();
       return true;
     } catch (error) {
       logger.error("Failed to initialize cryptocurrency tables:", error);
@@ -25,6 +27,7 @@ class CryptoListingsService {
   async shouldUpdate(endpoint) {
     try {
       const client = await pool.connect();
+
       const result = await client.query(
         `SELECT next_update_at FROM cryptocurrency_listings_last_update WHERE endpoint = $1`,
         [endpoint]
@@ -39,10 +42,9 @@ class CryptoListingsService {
       const nextUpdateAt = new Date(result.rows[0].next_update_at);
       const now = new Date();
 
-      return true;
+      return now >= nextUpdateAt;
     } catch (error) {
       logger.error("Error checking if update is needed:", error);
-
       return true;
     }
   }
@@ -74,25 +76,32 @@ class CryptoListingsService {
 
   async updateCryptocurrencyData() {
     try {
-      if (await this.shouldUpdate("listings/latest")) {
-        logger.info("Updating cryptocurrency data from CoinMarketCap API");
-        const data = await this.fetchListingsFromApi();
-
-        if (data && data.data) {
-          await this.saveCryptocurrencies(data.data);
-          await this.saveLatestPrices(data.data);
-          await this.updateLastUpdated("listings/latest");
-        }
-      } else {
+      const endpoint = "listings/latest";
+      if (!(await this.shouldUpdate(endpoint))) {
         logger.debug("Skipping cryptocurrency data update - not time yet");
+        return;
       }
+
+      logger.info("Updating cryptocurrency data from CoinMarketCap API");
+      const response = await this.fetchListingsFromApi();
+
+      if (!response || !response.data) {
+        logger.error("No data returned from CoinMarketCap API");
+        return;
+      }
+
+      const cryptoData = response.data;
+
+      await this.saveCryptocurrencies(cryptoData);
+      await this.saveLatestPrices(cryptoData);
+      await this.updateLastUpdated(endpoint);
     } catch (error) {
       logger.error("Failed to update cryptocurrency data:", error);
       throw error;
     }
   }
 
-  async fetchListingsFromApi(limit = 100) {
+  async fetchListingsFromApi(limit = this.defaultLimit) {
     try {
       const apiKey = coinMarketCapApiManager.getNextApiKey();
 
@@ -120,6 +129,7 @@ class CryptoListingsService {
         "Error fetching cryptocurrency listings from API:",
         error.message
       );
+
       if (error.response) {
         logger.error("API response error:", {
           status: error.response.status,
@@ -131,6 +141,7 @@ class CryptoListingsService {
           return this.fetchListingsFromApi(limit);
         }
       }
+
       throw new Error("Failed to fetch cryptocurrency listings from API");
     }
   }
@@ -141,44 +152,10 @@ class CryptoListingsService {
       await client.query("BEGIN");
 
       for (const crypto of cryptoData) {
-        await client.query(
-          `
-          INSERT INTO cryptocurrencies (
-            cmc_id, name, symbol, slug, max_supply, 
-            infinite_supply, date_added, updated_at
-          )
-          VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
-          ON CONFLICT (cmc_id) 
-          DO UPDATE SET 
-            name = $2,
-            symbol = $3,
-            slug = $4,
-            max_supply = $5,
-            infinite_supply = $6,
-            updated_at = NOW()
-          `,
-          [
-            crypto.id,
-            crypto.name,
-            crypto.symbol,
-            crypto.slug,
-            crypto.max_supply || null,
-            crypto.infinite_supply || false,
-            crypto.date_added || new Date(),
-          ]
-        );
+        await this.saveCryptocurrency(client, crypto);
 
         if (crypto.tags && Array.isArray(crypto.tags)) {
-          for (const tag of crypto.tags) {
-            await client.query(
-              `
-              INSERT INTO cryptocurrency_tags (cmc_id, tag)
-              VALUES ($1, $2)
-              ON CONFLICT (cmc_id, tag) DO NOTHING
-              `,
-              [crypto.id, tag]
-            );
-          }
+          await this.saveCryptocurrencyTags(client, crypto.id, crypto.tags);
         }
       }
 
@@ -193,6 +170,48 @@ class CryptoListingsService {
     }
   }
 
+  async saveCryptocurrency(client, crypto) {
+    await client.query(
+      `
+      INSERT INTO cryptocurrencies (
+        cmc_id, name, symbol, slug, max_supply, 
+        infinite_supply, date_added, updated_at
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
+      ON CONFLICT (cmc_id) 
+      DO UPDATE SET 
+        name = $2,
+        symbol = $3,
+        slug = $4,
+        max_supply = $5,
+        infinite_supply = $6,
+        updated_at = NOW()
+      `,
+      [
+        crypto.id,
+        crypto.name,
+        crypto.symbol,
+        crypto.slug,
+        crypto.max_supply || null,
+        crypto.infinite_supply || false,
+        crypto.date_added || new Date(),
+      ]
+    );
+  }
+
+  async saveCryptocurrencyTags(client, cryptoId, tags) {
+    for (const tag of tags) {
+      await client.query(
+        `
+        INSERT INTO cryptocurrency_tags (cmc_id, tag)
+        VALUES ($1, $2)
+        ON CONFLICT (cmc_id, tag) DO NOTHING
+        `,
+        [cryptoId, tag]
+      );
+    }
+  }
+
   async saveLatestPrices(cryptoData) {
     const client = await pool.connect();
     try {
@@ -200,52 +219,7 @@ class CryptoListingsService {
       const timestamp = new Date();
 
       for (const crypto of cryptoData) {
-        const quote = crypto.quote.USD;
-
-        await client.query(
-          `
-          INSERT INTO cryptocurrency_prices (
-            cmc_id, timestamp, price_usd, volume_24h, 
-            volume_change_24h, percent_change_1h, percent_change_24h, 
-            percent_change_7d, market_cap, market_cap_dominance, 
-            fully_diluted_market_cap, circulating_supply, 
-            total_supply, cmc_rank, num_market_pairs
-          )
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
-          ON CONFLICT (cmc_id, timestamp) 
-          DO UPDATE SET 
-            price_usd = $3,
-            volume_24h = $4,
-            volume_change_24h = $5,
-            percent_change_1h = $6,
-            percent_change_24h = $7,
-            percent_change_7d = $8,
-            market_cap = $9,
-            market_cap_dominance = $10,
-            fully_diluted_market_cap = $11,
-            circulating_supply = $12,
-            total_supply = $13,
-            cmc_rank = $14,
-            num_market_pairs = $15
-          `,
-          [
-            crypto.id,
-            timestamp,
-            quote.price || null,
-            quote.volume_24h || null,
-            quote.volume_change_24h || null,
-            quote.percent_change_1h || null,
-            quote.percent_change_24h || null,
-            quote.percent_change_7d || null,
-            quote.market_cap || null,
-            quote.market_cap_dominance || null,
-            quote.fully_diluted_market_cap || null,
-            crypto.circulating_supply || null,
-            crypto.total_supply || null,
-            crypto.cmc_rank || null,
-            crypto.num_market_pairs || null,
-          ]
-        );
+        await this.saveCryptocurrencyPrice(client, crypto, timestamp);
       }
 
       await client.query("COMMIT");
@@ -261,11 +235,61 @@ class CryptoListingsService {
     }
   }
 
+  async saveCryptocurrencyPrice(client, crypto, timestamp) {
+    const quote = crypto.quote.USD;
+
+    await client.query(
+      `
+      INSERT INTO cryptocurrency_prices (
+        cmc_id, timestamp, price_usd, volume_24h, 
+        volume_change_24h, percent_change_1h, percent_change_24h, 
+        percent_change_7d, market_cap, market_cap_dominance, 
+        fully_diluted_market_cap, circulating_supply, 
+        total_supply, cmc_rank, num_market_pairs
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+      ON CONFLICT (cmc_id, timestamp) 
+      DO UPDATE SET 
+        price_usd = $3,
+        volume_24h = $4,
+        volume_change_24h = $5,
+        percent_change_1h = $6,
+        percent_change_24h = $7,
+        percent_change_7d = $8,
+        market_cap = $9,
+        market_cap_dominance = $10,
+        fully_diluted_market_cap = $11,
+        circulating_supply = $12,
+        total_supply = $13,
+        cmc_rank = $14,
+        num_market_pairs = $15
+      `,
+      [
+        crypto.id,
+        timestamp,
+        quote.price || null,
+        quote.volume_24h || null,
+        quote.volume_change_24h || null,
+        quote.percent_change_1h || null,
+        quote.percent_change_24h || null,
+        quote.percent_change_7d || null,
+        quote.market_cap || null,
+        quote.market_cap_dominance || null,
+        quote.fully_diluted_market_cap || null,
+        crypto.circulating_supply || null,
+        crypto.total_supply || null,
+        crypto.cmc_rank || null,
+        crypto.num_market_pairs || null,
+      ]
+    );
+  }
+
   async getTopCryptocurrencies(limit = 10, offset = 0) {
     await this.updateCryptocurrencyData();
 
     try {
       const client = await pool.connect();
+
       const result = await client.query(
         `
         SELECT 
@@ -286,16 +310,19 @@ class CryptoListingsService {
         [limit, offset]
       );
 
-      const cryptosWithTags = [];
-      for (const crypto of result.rows) {
-        const tagResult = await client.query(
-          `SELECT tag FROM cryptocurrency_tags WHERE cmc_id = $1`,
-          [crypto.cmc_id]
-        );
+      const cryptosWithTags = await Promise.all(
+        result.rows.map(async (crypto) => {
+          const tagResult = await client.query(
+            `SELECT tag FROM cryptocurrency_tags WHERE cmc_id = $1`,
+            [crypto.cmc_id]
+          );
 
-        crypto.tags = tagResult.rows.map((row) => row.tag);
-        cryptosWithTags.push(crypto);
-      }
+          return {
+            ...crypto,
+            tags: tagResult.rows.map((row) => row.tag),
+          };
+        })
+      );
 
       client.release();
 
@@ -321,6 +348,7 @@ class CryptoListingsService {
 
     try {
       const client = await pool.connect();
+
       const result = await client.query(
         `
         SELECT 
@@ -354,24 +382,26 @@ class CryptoListingsService {
       );
 
       if (priceResult.rows.length > 0) {
+        const priceData = priceResult.rows[0];
+
         crypto.quote = {
           USD: {
-            price: priceResult.rows[0].price_usd,
-            volume_24h: priceResult.rows[0].volume_24h,
-            volume_change_24h: priceResult.rows[0].volume_change_24h,
-            percent_change_1h: priceResult.rows[0].percent_change_1h,
-            percent_change_24h: priceResult.rows[0].percent_change_24h,
-            percent_change_7d: priceResult.rows[0].percent_change_7d,
-            market_cap: priceResult.rows[0].market_cap,
-            market_cap_dominance: priceResult.rows[0].market_cap_dominance,
-            fully_diluted_market_cap:
-              priceResult.rows[0].fully_diluted_market_cap,
-            last_updated: priceResult.rows[0].timestamp,
+            price: priceData.price_usd,
+            volume_24h: priceData.volume_24h,
+            volume_change_24h: priceData.volume_change_24h,
+            percent_change_1h: priceData.percent_change_1h,
+            percent_change_24h: priceData.percent_change_24h,
+            percent_change_7d: priceData.percent_change_7d,
+            market_cap: priceData.market_cap,
+            market_cap_dominance: priceData.market_cap_dominance,
+            fully_diluted_market_cap: priceData.fully_diluted_market_cap,
+            last_updated: priceData.timestamp,
           },
         };
-        crypto.circulating_supply = priceResult.rows[0].circulating_supply;
-        crypto.total_supply = priceResult.rows[0].total_supply;
-        crypto.cmc_rank = priceResult.rows[0].cmc_rank;
+
+        crypto.circulating_supply = priceData.circulating_supply;
+        crypto.total_supply = priceData.total_supply;
+        crypto.cmc_rank = priceData.cmc_rank;
       }
 
       const tagResult = await client.query(
@@ -415,6 +445,7 @@ class CryptoListingsService {
       }
 
       const cmcId = cryptoResult.rows[0].cmc_id;
+
       const cutoffDate = new Date();
       cutoffDate.setDate(cutoffDate.getDate() - days);
 
@@ -472,26 +503,31 @@ class CryptoListingsService {
         0
       );
 
-      const performanceStats = data.reduce(
-        (stats, crypto) => {
-          if (crypto.percent_change_24h > 0) stats.gainers24h++;
-          if (crypto.percent_change_24h < 0) stats.losers24h++;
-          if (crypto.percent_change_7d > 0) stats.gainers7d++;
-          if (crypto.percent_change_7d < 0) stats.losers7d++;
-          return stats;
-        },
-        { gainers24h: 0, losers24h: 0, gainers7d: 0, losers7d: 0 }
-      );
+      const performanceStats = this.calculatePerformanceStats(data);
 
       const sortedByChange24h = [...data].sort(
         (a, b) => (b.percent_change_24h || 0) - (a.percent_change_24h || 0)
       );
-      const topGainers = sortedByChange24h.slice(0, 5);
-      const topLosers = sortedByChange24h.slice(-5).reverse();
+
+      const topGainers = sortedByChange24h.slice(0, 5).map((crypto) => ({
+        symbol: crypto.symbol,
+        name: crypto.name,
+        percent_change_24h: crypto.percent_change_24h,
+      }));
+
+      const topLosers = sortedByChange24h
+        .slice(-5)
+        .reverse()
+        .map((crypto) => ({
+          symbol: crypto.symbol,
+          name: crypto.name,
+          percent_change_24h: crypto.percent_change_24h,
+        }));
 
       const top5MarketCap = data
         .slice(0, 5)
         .reduce((sum, crypto) => sum + (crypto.market_cap || 0), 0);
+
       const top5Dominance = (top5MarketCap / totalMarketCap) * 100;
 
       return {
@@ -519,22 +555,27 @@ class CryptoListingsService {
             ).toFixed(2)
           ),
         },
-        top_gainers_24h: topGainers.map((crypto) => ({
-          symbol: crypto.symbol,
-          name: crypto.name,
-          percent_change_24h: crypto.percent_change_24h,
-        })),
-        top_losers_24h: topLosers.map((crypto) => ({
-          symbol: crypto.symbol,
-          name: crypto.name,
-          percent_change_24h: crypto.percent_change_24h,
-        })),
+        top_gainers_24h: topGainers,
+        top_losers_24h: topLosers,
         timestamp: new Date().toISOString(),
       };
     } catch (error) {
       logger.error("Error analyzing cryptocurrency data:", error);
       return { error: "Failed to analyze market data" };
     }
+  }
+
+  calculatePerformanceStats(data) {
+    return data.reduce(
+      (stats, crypto) => {
+        if (crypto.percent_change_24h > 0) stats.gainers24h++;
+        if (crypto.percent_change_24h < 0) stats.losers24h++;
+        if (crypto.percent_change_7d > 0) stats.gainers7d++;
+        if (crypto.percent_change_7d < 0) stats.losers7d++;
+        return stats;
+      },
+      { gainers24h: 0, losers24h: 0, gainers7d: 0, losers7d: 0 }
+    );
   }
 
   startUpdateScheduler() {
