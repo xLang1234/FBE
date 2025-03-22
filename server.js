@@ -4,6 +4,7 @@ const morgan = require("morgan");
 require("dotenv").config();
 
 const logger = require("./config/logger");
+const LOG = require("./constants/logMessages");
 const db = require("./db");
 
 const authRoutes = require("./routes/auth");
@@ -49,45 +50,36 @@ app.use("/api/payment", paymentRoutes);
 
 if (process.env.NODE_ENV !== "production") {
   app.use("/api/admin/database", dbAdminRoutes);
-  logger.warn("Database admin routes are enabled - disable in production!");
+  logger.warn(LOG.SERVER.DB_ADMIN_WARNING);
 }
 
 const contentRoutes = require("./routes/content");
-
 const contentService = require("./services/contentService");
-
 app.use("/api/content", contentRoutes);
 
 app.get("/api/init-db", async (req, res) => {
-  logger.info("Database initialization requested");
+  logger.info(LOG.SERVER.DB_INIT_REQUEST);
 
   try {
     await db.initializeDatabase();
-
     await contentService.initializeDatabase();
-
     await fearAndGreedIndex.initializeDatabase();
-
     await altcoinSeason.initializeDatabase();
-
     await cryptoListings.initializeDatabase();
-
     await feedbackService.initializeDatabase();
 
-    logger.info("Database initialized successfully");
-    res.status(200).json({ message: "Database initialized successfully" });
+    logger.info(LOG.SERVER.DB_INIT_SUCCESS);
+    res.status(200).json({ message: LOG.SERVER.DB_INIT_SUCCESS });
   } catch (error) {
-    logger.error("Database initialization error:", error);
-    res.status(500).json({ error: "Database initialization failed" });
+    logger.error(LOG.ERROR.DATABASE, error);
+    res.status(500).json({ error: LOG.SERVER.DB_INIT_FAILURE });
   }
 });
 
 app.use(errorHandler);
 
 const telegramPublisherRoutes = require("./routes/telegramPublisher");
-
 const telegramPublisherService = require("./services/telegramPublisherService");
-
 app.use("/api/telegram-publisher", telegramPublisherRoutes);
 
 if (
@@ -97,45 +89,43 @@ if (
   const publisherInterval =
     parseInt(process.env.TELEGRAM_PUBLISHER_INTERVAL || "60") * 1000;
   telegramPublisherService.startPolling(publisherInterval);
-  logger.info(
-    `Telegram publisher service started with ${publisherInterval}ms interval`
-  );
+  logger.info(LOG.SERVICE.PUBLISHER_STARTED(publisherInterval));
 }
 
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, async () => {
-  logger.info(`Server running on port ${PORT}`);
-  logger.info(`Environment: ${process.env.NODE_ENV || "development"}`);
+  logger.info(LOG.SERVER.RUNNING(PORT));
+  logger.info(LOG.SERVER.ENVIRONMENT(process.env.NODE_ENV));
 
   db.initializeDbConnection();
 
   fearAndGreedIndex.startUpdateScheduler();
-  logger.info("Fear and greed index scheduler started");
+  logger.info(LOG.SERVICE.SCHEDULER_STARTED("Fear and greed index"));
 
   altcoinSeason.startUpdateScheduler();
-  logger.info("Altcoin season index scheduler started");
+  logger.info(LOG.SERVICE.SCHEDULER_STARTED("Altcoin season index"));
 
   cryptoListings.startUpdateScheduler();
-  logger.info("Crypto listings scheduler started");
+  logger.info(LOG.SERVICE.SCHEDULER_STARTED("Crypto listings"));
 
   if (process.env.TELEGRAM_BOT_TOKEN) {
     const initialized = await telegramService.initialize();
     if (initialized) {
-      logger.info("Telegram bot initialized successfully");
+      logger.info(LOG.SERVICE.TELEGRAM_INIT_SUCCESS);
     } else {
-      logger.warn("Failed to initialize Telegram bot");
+      logger.warn(LOG.SERVICE.TELEGRAM_INIT_FAILURE);
     }
   } else {
-    logger.warn("TELEGRAM_BOT_TOKEN not set, Telegram functionality disabled");
+    logger.warn(LOG.SERVICE.TELEGRAM_DISABLED);
   }
 });
 
 process.on("uncaughtException", (error) => {
-  logger.error("Uncaught exception:", error);
+  logger.error(LOG.ERROR.UNCAUGHT, error);
 });
 
 process.on("unhandledRejection", (reason, promise) => {
-  logger.error("Unhandled promise rejection:", reason);
+  logger.error(LOG.ERROR.UNHANDLED_REJECTION, reason);
 });
 
 module.exports = app;

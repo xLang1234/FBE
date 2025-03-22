@@ -1,5 +1,6 @@
 const axios = require("axios");
 const logger = require("../config/logger");
+const LOG = require("../constants/logMessages");
 const { pool } = require("../db");
 const AltcoinSeasonRepository = require("../repositories/altcoinSeasonRepository");
 const {
@@ -15,10 +16,13 @@ class AltcoinSeasonService {
   async initializeDatabase() {
     try {
       await createAltcoinSeasonIndexTable(pool);
-      logger.info("Altcoin season index tables initialized");
+      logger.info(LOG.SERVICE.TABLES_INIT_SUCCESS("Altcoin season index"));
       return true;
     } catch (error) {
-      logger.error("Failed to initialize altcoin season index tables:", error);
+      logger.error(
+        LOG.SERVICE.TABLES_INIT_FAILURE("altcoin season index"),
+        error
+      );
       return false;
     }
   }
@@ -44,12 +48,12 @@ class AltcoinSeasonService {
       });
 
       if (!response.data || !response.data.data || !response.data.data.points) {
-        throw new Error("Invalid response format from CoinMarketCap API");
+        throw new Error(LOG.ERROR.API_RESPONSE("CoinMarketCap"));
       }
 
       return response.data.data.points;
     } catch (error) {
-      logger.error("Error fetching altcoin season data:", error);
+      logger.error(LOG.DATA.FETCH_ERROR("altcoin season"), error);
       throw new Error(`Failed to fetch altcoin season data: ${error.message}`);
     }
   }
@@ -59,14 +63,14 @@ class AltcoinSeasonService {
       const shouldUpdate = await this.repository.shouldUpdate(this.updateType);
 
       if (!shouldUpdate) {
-        logger.info("Skipping altcoin season index update - not time yet");
+        logger.info(LOG.DATA.UPDATE_SKIPPED("altcoin season index"));
         return { updated: false, message: "No update needed" };
       }
 
-      logger.info("Fetching altcoin season index data from CoinMarketCap");
+      logger.info(LOG.DATA.FETCHING("altcoin season index"));
       const data = await this.fetchAltcoinSeasonData(30);
 
-      logger.info(`Saving ${data.length} altcoin season index records`);
+      logger.info(LOG.DATA.SAVING_RECORDS(data.length, "altcoin season index"));
       const insertedCount = await this.repository.saveBatch(data);
 
       const nextUpdate = new Date();
@@ -75,7 +79,7 @@ class AltcoinSeasonService {
       await this.repository.updateLastUpdated(this.updateType, nextUpdate);
 
       logger.info(
-        `Altcoin season index update complete. Inserted ${insertedCount} new records`
+        LOG.DATA.UPDATE_COMPLETE("Altcoin season index", insertedCount)
       );
       return {
         updated: true,
@@ -83,7 +87,7 @@ class AltcoinSeasonService {
         nextUpdateTime: nextUpdate,
       };
     } catch (error) {
-      logger.error("Error updating altcoin season index data:", error);
+      logger.error(LOG.DATA.FETCH_ERROR("altcoin season index"), error);
       throw error;
     }
   }
@@ -100,7 +104,7 @@ class AltcoinSeasonService {
         })),
       };
     } catch (error) {
-      logger.error("Error getting historical altcoin season data:", error);
+      logger.error(LOG.DATA.FETCH_ERROR("historical altcoin season"), error);
       throw error;
     }
   }
@@ -122,7 +126,7 @@ class AltcoinSeasonService {
         },
       };
     } catch (error) {
-      logger.error("Error getting latest altcoin season data:", error);
+      logger.error(LOG.DATA.FETCH_ERROR("latest altcoin season"), error);
       throw error;
     }
   }
@@ -130,15 +134,14 @@ class AltcoinSeasonService {
   startUpdateScheduler() {
     const runUpdate = async () => {
       try {
-        logger.info("Running scheduled update for altcoin season index");
+        logger.info(LOG.SERVICE.SCHEDULER_RUNNING("altcoin season index"));
         await this.updateAltcoinSeasonData();
       } catch (error) {
-        logger.error("Scheduled altcoin season update failed:", error);
+        logger.error(LOG.SERVICE.SCHEDULER_FAILED("altcoin season"), error);
       }
     };
 
     setInterval(runUpdate, 60 * 60 * 1000);
-
     runUpdate();
   }
 
@@ -190,7 +193,7 @@ class AltcoinSeasonService {
         )}, indicating ${marketCondition}.`,
       };
     } catch (error) {
-      logger.error("Error analyzing altcoin season data:", error);
+      logger.error(LOG.DATA.FETCH_ERROR("analyzing altcoin season"), error);
       return {
         trend: "error",
         message: "Error analyzing data",

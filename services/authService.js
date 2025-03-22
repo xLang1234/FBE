@@ -1,5 +1,6 @@
 const bcrypt = require("bcrypt");
 const logger = require("../config/logger");
+const LOG = require("../constants/logMessages");
 const { pool } = require("../config/db");
 const { createSession } = require("../utils/sessionUtils");
 const { verifyGoogleToken } = require("../config/auth");
@@ -8,9 +9,7 @@ async function saveGoogleUser(userData) {
   const { sub, email, name, picture } = userData;
 
   try {
-    logger.debug("Checking if Google user exists in database", {
-      googleId: sub,
-    });
+    logger.debug(LOG.AUTH.GOOGLE_CHECK, { googleId: sub });
 
     const checkResult = await pool.query(
       "SELECT u.*, r.name as role_name FROM users u JOIN roles r ON u.role_id = r.id WHERE u.google_id = $1",
@@ -18,10 +17,7 @@ async function saveGoogleUser(userData) {
     );
 
     if (checkResult.rows.length > 0) {
-      logger.info("Updating existing Google user in database", {
-        googleId: sub,
-        email,
-      });
+      logger.info(LOG.AUTH.GOOGLE_UPDATE, { googleId: sub, email });
 
       const updateResult = await pool.query(
         "UPDATE users SET email = $1, name = $2, picture = $3, last_login = NOW() WHERE google_id = $4 RETURNING *",
@@ -38,7 +34,7 @@ async function saveGoogleUser(userData) {
         role: roleResult.rows[0].name,
       };
 
-      logger.debug("Google user updated successfully", {
+      logger.debug(LOG.AUTH.GOOGLE_SUCCESS, {
         userId: user.id,
         googleId: sub,
         role: user.role,
@@ -52,10 +48,7 @@ async function saveGoogleUser(userData) {
       );
 
       if (emailCheckResult.rows.length > 0) {
-        logger.info("Linking Google account to existing user", {
-          email,
-          googleId: sub,
-        });
+        logger.info(LOG.AUTH.GOOGLE_LINK, { email, googleId: sub });
 
         const linkResult = await pool.query(
           "UPDATE users SET google_id = $1, picture = $2, last_login = NOW() WHERE email = $3 RETURNING *",
@@ -69,10 +62,7 @@ async function saveGoogleUser(userData) {
 
         return user;
       } else {
-        logger.info("Creating new Google user in database", {
-          googleId: sub,
-          email,
-        });
+        logger.info(LOG.AUTH.GOOGLE_CREATE, { googleId: sub, email });
 
         const basicRoleId = 1;
 
@@ -86,7 +76,7 @@ async function saveGoogleUser(userData) {
           role: "basic",
         };
 
-        logger.debug("Google user created successfully", {
+        logger.debug(LOG.AUTH.GOOGLE_CREATE_SUCCESS, {
           userId: user.id,
           googleId: sub,
           role: user.role,
@@ -96,9 +86,7 @@ async function saveGoogleUser(userData) {
       }
     }
   } catch (error) {
-    logger.error("Database error when saving Google user:", error, {
-      googleId: sub,
-    });
+    logger.error(LOG.ERROR.DATABASE, error, { googleId: sub });
     throw error;
   }
 }
@@ -107,15 +95,14 @@ async function processGoogleSignIn(token) {
   const payload = await verifyGoogleToken(token);
 
   if (!payload) {
-    logger.warn("Invalid Google token received");
+    logger.warn(LOG.AUTH.GOOGLE_INVALID);
     return null;
   }
 
   const user = await saveGoogleUser(payload);
-
   const sessionToken = await createSession(user.id);
 
-  logger.info("User authenticated successfully via Google", {
+  logger.info(LOG.AUTH.LOGIN_SUCCESS, {
     userId: user.id,
     email: user.email,
     role: user.role,
@@ -135,7 +122,7 @@ async function processGoogleSignIn(token) {
 
 async function processSignup(username, email, password) {
   if (!username || !email || !password) {
-    logger.warn("Incomplete signup data received");
+    logger.warn(LOG.AUTH.INCOMPLETE_DATA);
     return { error: "All fields are required", status: 400 };
   }
 
@@ -143,7 +130,7 @@ async function processSignup(username, email, password) {
     email,
   ]);
   if (emailCheck.rows.length > 0) {
-    logger.warn("Email already in use", { email });
+    logger.warn(LOG.AUTH.EMAIL_TAKEN, { email });
     return { error: "Email already in use", status: 400 };
   }
 
@@ -152,13 +139,12 @@ async function processSignup(username, email, password) {
     [username]
   );
   if (usernameCheck.rows.length > 0) {
-    logger.warn("Username already taken", { username });
+    logger.warn(LOG.AUTH.USERNAME_TAKEN, { username });
     return { error: "Username already taken", status: 400 };
   }
 
   const saltRounds = 10;
   const hashedPassword = await bcrypt.hash(password, saltRounds);
-
   const basicRoleId = 1;
 
   const result = await pool.query(
@@ -167,10 +153,9 @@ async function processSignup(username, email, password) {
   );
 
   const user = result.rows[0];
-
   const sessionToken = await createSession(user.id);
 
-  logger.info("User registered successfully", { userId: user.id, email });
+  logger.info(LOG.AUTH.SIGNUP_SUCCESS, { userId: user.id, email });
 
   return {
     user: {
@@ -194,21 +179,21 @@ async function processLogin(email, password) {
   );
 
   if (result.rows.length === 0) {
-    logger.warn("Login attempt with non-existent email", { email });
+    logger.warn(LOG.AUTH.INVALID_EMAIL, { email });
     return { error: "Invalid credentials", status: 401 };
   }
 
   const user = result.rows[0];
 
   if (!user.password_hash) {
-    logger.warn("Login attempt to Google-only account", { email });
+    logger.warn(LOG.AUTH.GOOGLE_ONLY, { email });
     return { error: "Please login with Google", status: 401 };
   }
 
   const passwordMatch = await bcrypt.compare(password, user.password_hash);
 
   if (!passwordMatch) {
-    logger.warn("Login attempt with incorrect password", { email });
+    logger.warn(LOG.AUTH.INCORRECT_PASSWORD, { email });
     return { error: "Invalid credentials", status: 401 };
   }
 
@@ -218,7 +203,7 @@ async function processLogin(email, password) {
 
   const sessionToken = await createSession(user.id);
 
-  logger.info("User logged in successfully", {
+  logger.info(LOG.AUTH.LOGIN_SUCCESS, {
     userId: user.id,
     email,
     role: user.role_name,
@@ -245,7 +230,7 @@ async function changeUserRole(userId, roleName) {
     );
 
     if (roleResult.rows.length === 0) {
-      logger.warn("Attempted to assign invalid role", { roleName });
+      logger.warn(LOG.AUTH.INVALID_ROLE, { roleName });
       return { error: "Invalid role", status: 400 };
     }
 
@@ -256,14 +241,14 @@ async function changeUserRole(userId, roleName) {
       userId,
     ]);
 
-    logger.info("User role updated successfully", {
+    logger.info(LOG.AUTH.ROLE_UPDATED, {
       userId,
       newRole: roleName,
     });
 
     return { success: true };
   } catch (error) {
-    logger.error("Error changing user role:", error);
+    logger.error(LOG.ERROR.ROLE_CHANGE, error);
     throw error;
   }
 }
