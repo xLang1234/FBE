@@ -1,16 +1,15 @@
-// repositories/cryptoListingsRepository.js
+// repositories/cryptoRepository.js
 const logger = require("../config/logger");
+const { CRYPTO, ERROR, DATA } = require("../constants/logMessages");
 
 function safeNumericValue(value) {
   if (value === null || value === undefined) {
     return null;
   }
-
-  // Convert to string to prevent any potential numeric issues during insertion
   return value.toString();
 }
 
-class CryptoListingsRepository {
+class CryptocurrencyRepository {
   constructor(pool) {
     this.pool = pool;
   }
@@ -23,6 +22,7 @@ class CryptoListingsRepository {
 
     try {
       await client.query("BEGIN");
+      logger.debug(DATA.PROCESSING_BATCH(listings.length));
 
       for (const item of listings) {
         const {
@@ -41,10 +41,6 @@ class CryptoListingsRepository {
           tags,
           quote,
         } = item;
-        console.log(
-          "🚀 ~ CryptoListingsRepository ~ saveBatch ~ quote:",
-          quote
-        );
 
         // 1. Insert or update cryptocurrency base data
         const cryptoResult = await client.query(
@@ -136,10 +132,12 @@ class CryptoListingsRepository {
       }
 
       await client.query("COMMIT");
+      logger.info(CRYPTO.CRYPTOCURRENCIES_SAVED(insertedCryptos));
+      logger.info(CRYPTO.PRICES_SAVED(insertedPrices));
       return { insertedCryptos, insertedPrices, insertedTags };
     } catch (error) {
       await client.query("ROLLBACK");
-      logger.error("Error saving batch cryptocurrency data:", error);
+      logger.error(CRYPTO.DB_SAVE_ERROR, error);
       throw error;
     } finally {
       client.release();
@@ -158,9 +156,15 @@ class CryptoListingsRepository {
       }
 
       const nextUpdate = result.rows[0].next_update_at;
-      return new Date() >= new Date(nextUpdate);
+      const shouldUpdate = new Date() >= new Date(nextUpdate);
+
+      if (!shouldUpdate) {
+        logger.info(DATA.UPDATE_SKIPPED("cryptocurrency"));
+      }
+
+      return shouldUpdate;
     } catch (error) {
-      logger.error("Error checking update time:", error);
+      logger.error(CRYPTO.UPDATE_CHECK_ERROR, error);
       return true; // On error, assume we should update
     }
   }
@@ -174,9 +178,11 @@ class CryptoListingsRepository {
          DO UPDATE SET last_updated_at = NOW(), next_update_at = $2`,
         [updateType, nextUpdate]
       );
+
+      logger.info(CRYPTO.NEXT_UPDATE_SCHEDULED(nextUpdate));
       return true;
     } catch (error) {
-      logger.error("Error updating last_update record:", error);
+      logger.error(CRYPTO.TIMESTAMP_UPDATE_ERROR, error);
       throw error;
     }
   }
@@ -191,6 +197,7 @@ class CryptoListingsRepository {
       const latestTimestamp = timestampResult.rows[0].latest_timestamp;
 
       if (!latestTimestamp) {
+        logger.warn(DATA.NO_ITEMS);
         return [];
       }
 
@@ -209,13 +216,15 @@ class CryptoListingsRepository {
 
       return result.rows;
     } catch (error) {
-      logger.error("Error fetching top cryptocurrencies:", error);
+      logger.error(CRYPTO.TOP_CRYPTO_ERROR, error);
       throw error;
     }
   }
 
   async getHistoricalPrices(cmc_id, days = 30) {
     try {
+      logger.debug(DATA.FETCHING(`historical prices for cmc_id ${cmc_id}`));
+
       const result = await this.pool.query(
         `SELECT timestamp, price_usd, volume_24h, market_cap, 
                 percent_change_24h, percent_change_7d, cmc_rank
@@ -228,16 +237,15 @@ class CryptoListingsRepository {
 
       return result.rows;
     } catch (error) {
-      logger.error(
-        `Error fetching historical prices for cmc_id ${cmc_id}:`,
-        error
-      );
+      logger.error(CRYPTO.HISTORICAL_PRICES_ERROR(cmc_id), error);
       throw error;
     }
   }
 
   async getCryptocurrencyBySymbol(symbol) {
     try {
+      logger.debug(DATA.FETCHING(`cryptocurrency with symbol ${symbol}`));
+
       const result = await this.pool.query(
         `SELECT c.cmc_id, c.name, c.symbol, c.slug, c.max_supply, c.infinite_supply, c.date_added
          FROM cryptocurrencies c
@@ -246,6 +254,7 @@ class CryptoListingsRepository {
       );
 
       if (result.rows.length === 0) {
+        logger.warn(CRYPTO.SYMBOL_NOT_FOUND(symbol));
         return null;
       }
 
@@ -277,10 +286,10 @@ class CryptoListingsRepository {
 
       return crypto;
     } catch (error) {
-      logger.error(`Error fetching cryptocurrency by symbol ${symbol}:`, error);
+      logger.error(CRYPTO.SYMBOL_FETCH_ERROR(symbol), error);
       throw error;
     }
   }
 }
 
-module.exports = CryptoListingsRepository;
+module.exports = CryptocurrencyRepository;

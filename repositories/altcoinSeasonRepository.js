@@ -1,5 +1,6 @@
 // repositories/altcoinSeasonRepository.js
 const logger = require("../config/logger");
+const { DATA, ERROR } = require("../constants/logMessages");
 
 class AltcoinSeasonRepository {
   constructor(pool) {
@@ -12,6 +13,10 @@ class AltcoinSeasonRepository {
 
     try {
       await client.query("BEGIN");
+      logger.debug(DATA.PROCESSING_BATCH(altcoinSeasonData.length));
+      logger.info(
+        DATA.SAVING_RECORDS(altcoinSeasonData.length, "altcoin season index")
+      );
 
       for (const item of altcoinSeasonData) {
         const { timestamp, altcoinIndex, altcoinMarketcap } = item;
@@ -38,10 +43,11 @@ class AltcoinSeasonRepository {
       }
 
       await client.query("COMMIT");
+      logger.info(DATA.UPDATE_COMPLETE("altcoin season index", insertedCount));
       return insertedCount;
     } catch (error) {
       await client.query("ROLLBACK");
-      logger.error("Error saving batch altcoin season index data:", error);
+      logger.error(ERROR.DATABASE, error);
       throw error;
     } finally {
       client.release();
@@ -50,6 +56,8 @@ class AltcoinSeasonRepository {
 
   async getHistoricalData(days = 30) {
     try {
+      logger.debug(DATA.FETCHING("historical altcoin season"));
+
       const result = await this.pool.query(
         `SELECT 
           timestamp, 
@@ -61,13 +69,15 @@ class AltcoinSeasonRepository {
       );
       return result.rows;
     } catch (error) {
-      logger.error("Error fetching historical altcoin season data:", error);
+      logger.error(ERROR.DATABASE, error);
       throw error;
     }
   }
 
   async getLatest() {
     try {
+      logger.debug(DATA.FETCHING("latest altcoin season index"));
+
       const result = await this.pool.query(
         `SELECT 
           timestamp, 
@@ -77,9 +87,14 @@ class AltcoinSeasonRepository {
          ORDER BY timestamp DESC 
          LIMIT 1`
       );
+
+      if (result.rows.length === 0) {
+        logger.warn(DATA.NO_ITEMS);
+      }
+
       return result.rows.length > 0 ? result.rows[0] : null;
     } catch (error) {
-      logger.error("Error fetching latest altcoin season index data:", error);
+      logger.error(ERROR.DATABASE, error);
       throw error;
     }
   }
@@ -96,9 +111,15 @@ class AltcoinSeasonRepository {
       }
 
       const nextUpdate = result.rows[0].next_update;
-      return new Date() >= new Date(nextUpdate);
+      const shouldUpdate = new Date() >= new Date(nextUpdate);
+
+      if (!shouldUpdate) {
+        logger.info(DATA.UPDATE_SKIPPED("altcoin season index"));
+      }
+
+      return shouldUpdate;
     } catch (error) {
-      logger.error("Error checking update time for altcoin season:", error);
+      logger.error(ERROR.DATABASE, error);
       return true; // On error, assume we should update
     }
   }
@@ -112,12 +133,11 @@ class AltcoinSeasonRepository {
          DO UPDATE SET last_updated = NOW(), next_update = $2`,
         [updateType, nextUpdate]
       );
+
+      logger.info(`Next ${updateType} update scheduled for ${nextUpdate}`);
       return true;
     } catch (error) {
-      logger.error(
-        "Error updating last_update record for altcoin season:",
-        error
-      );
+      logger.error(ERROR.DATABASE, error);
       throw error;
     }
   }
