@@ -1,5 +1,6 @@
 // repositories/entityRepository.js
 const logger = require("../config/logger");
+const { ENTITY } = require("../constants/logMessages");
 
 class EntityRepository {
   constructor(pool) {
@@ -36,9 +37,10 @@ class EntityRepository {
         ]
       );
 
+      logger.info(ENTITY.CREATE_SUCCESS(name));
       return result.rows[0];
     } catch (error) {
-      logger.error("Error creating entity:", error);
+      logger.error(ENTITY.CREATE_ERROR, error);
       throw error;
     }
   }
@@ -64,7 +66,7 @@ class EntityRepository {
       );
       return result.rows.length > 0 ? result.rows[0] : null;
     } catch (error) {
-      logger.error(`Error getting entity with id ${id}:`, error);
+      logger.error(ENTITY.GET_ERROR(id), error);
       throw error;
     }
   }
@@ -90,10 +92,7 @@ class EntityRepository {
       );
       return result.rows.length > 0 ? result.rows[0] : null;
     } catch (error) {
-      logger.error(
-        `Error getting entity with external id ${externalId}:`,
-        error
-      );
+      logger.error(ENTITY.GET_BY_EXTERNAL_ERROR(externalId), error);
       throw error;
     }
   }
@@ -168,7 +167,7 @@ class EntityRepository {
 
       return result.rows;
     } catch (error) {
-      logger.error("Error getting all entities:", error);
+      logger.error(ENTITY.GET_ALL_ERROR, error);
       throw error;
     }
   }
@@ -214,9 +213,20 @@ class EntityRepository {
         queryParams
       );
 
-      return result.rows.length > 0 ? result.rows[0] : null;
+      if (result.rows.length > 0) {
+        logger.info(ENTITY.UPDATE_SUCCESS(id));
+
+        // Log status change if present in updates
+        if (updates.isActive !== undefined) {
+          const status = updates.isActive ? "active" : "inactive";
+          logger.info(ENTITY.STATUS_CHANGE(id, status));
+        }
+
+        return result.rows[0];
+      }
+      return null;
     } catch (error) {
-      logger.error(`Error updating entity with id ${id}:`, error);
+      logger.error(ENTITY.UPDATE_ERROR(id), error);
       throw error;
     }
   }
@@ -227,9 +237,14 @@ class EntityRepository {
         `DELETE FROM entities WHERE id = $1 RETURNING id`,
         [id]
       );
-      return result.rowCount > 0;
+
+      if (result.rowCount > 0) {
+        logger.info(ENTITY.DELETE_SUCCESS(id));
+        return true;
+      }
+      return false;
     } catch (error) {
-      logger.error(`Error deleting entity with id ${id}:`, error);
+      logger.error(ENTITY.DELETE_ERROR(id), error);
       throw error;
     }
   }
@@ -257,10 +272,7 @@ class EntityRepository {
       );
       return result.rows;
     } catch (error) {
-      logger.error(
-        `Error getting active entities for source type ${sourceType}:`,
-        error
-      );
+      logger.error(ENTITY.ACTIVE_BY_SOURCE_ERROR(sourceType), error);
       throw error;
     }
   }

@@ -166,6 +166,61 @@ const ERROR = {
   ROLE_CHANGE: "Error changing user role:",
 };
 
+// Sentiment analysis messages
+const SENTIMENT = {
+  BATCH_SAVE_ERROR: "Error saving batch fear and greed index data:",
+  UPDATE_CHECK_ERROR: "Error checking update time:",
+  LAST_UPDATE_ERROR: "Error updating last_update record:",
+  HISTORICAL_DATA_ERROR: "Error fetching historical data:",
+  LATEST_DATA_ERROR: "Error fetching latest fear and greed index data:",
+  INDEX_SAVED: (count) => `Saved ${count} fear and greed index records`,
+  NEXT_UPDATE_SCHEDULED: (timestamp) =>
+    `Next sentiment update scheduled for ${timestamp}`,
+  UPDATE_SKIPPED: "Skipping sentiment update - not time yet",
+  TABLES_INIT_START: "Creating fear_and_greed_index table",
+  TABLES_INIT_LAST_UPDATE: "Creating last_update table for sentiment tracking",
+  TABLES_INIT_COMPLETE: "All sentiment tables created successfully",
+  TABLE_CREATE_ERROR: (table) => `Error creating ${table} table:`,
+  API_FETCH_ERROR: "Error fetching sentiment data from API:",
+  API_NO_DATA: "No data returned from sentiment API",
+};
+
+// Feedback messages
+const FEEDBACK = {
+  CREATE_SUCCESS: "Feedback created successfully",
+  CREATE_ERROR: "Error creating feedback:",
+  GET_ERROR: (id) => `Error getting feedback with id ${id}:`,
+  GET_ALL_ERROR: "Error getting all feedback:",
+  UPDATE_SUCCESS: (id) => `Feedback ID ${id} updated successfully`,
+  UPDATE_ERROR: (id) => `Error updating feedback with id ${id}:`,
+  DELETE_SUCCESS: (id) => `Feedback ID ${id} deleted successfully`,
+  DELETE_ERROR: (id) => `Error deleting feedback with id ${id}:`,
+  STATUS_CHANGE: (id, status) =>
+    `Feedback ID ${id} status changed to ${status}`,
+  TABLES_INIT_START: "Creating feedback table",
+  TABLES_INIT_COMPLETE: "Feedback table created successfully",
+  TABLE_CREATE_ERROR: "Error creating feedback table:",
+  FEEDBACK_RECEIVED: (type) => `New ${type} feedback received`,
+  METRICS_ERROR: "Error calculating feedback metrics:",
+};
+
+// Entity messages
+const ENTITY = {
+  CREATE_SUCCESS: (name) => `Entity ${name} created successfully`,
+  CREATE_ERROR: "Error creating entity:",
+  GET_ERROR: (id) => `Error getting entity with id ${id}:`,
+  GET_BY_EXTERNAL_ERROR: (externalId) =>
+    `Error getting entity with external id ${externalId}:`,
+  GET_ALL_ERROR: "Error getting all entities:",
+  UPDATE_SUCCESS: (id) => `Entity ID ${id} updated successfully`,
+  UPDATE_ERROR: (id) => `Error updating entity with id ${id}:`,
+  DELETE_SUCCESS: (id) => `Entity ID ${id} deleted successfully`,
+  DELETE_ERROR: (id) => `Error deleting entity with id ${id}:`,
+  ACTIVE_BY_SOURCE_ERROR: (sourceType) =>
+    `Error getting active entities for source type ${sourceType}:`,
+  STATUS_CHANGE: (id, status) => `Entity ID ${id} status changed to ${status}`,
+};
+
 module.exports = {
   SERVER,
   SERVICE,
@@ -175,4 +230,7 @@ module.exports = {
   CRYPTO,
   ERROR,
   DATABASE,
+  SENTIMENT,
+  FEEDBACK,
+  ENTITY,
 };

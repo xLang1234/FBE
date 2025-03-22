@@ -1,5 +1,6 @@
 // repositories/cryptoSentimentRepository.js
 const logger = require("../config/logger");
+const { SENTIMENT } = require("../constants/logMessages");
 
 class FearAndGreedIndexRepository {
   constructor(pool) {
@@ -37,7 +38,7 @@ class FearAndGreedIndexRepository {
       return insertedCount;
     } catch (error) {
       await client.query("ROLLBACK");
-      logger.error("Error saving batch fear and greed index data:", error);
+      logger.error(SENTIMENT.BATCH_SAVE_ERROR, error);
       throw error;
     } finally {
       client.release();
@@ -58,7 +59,7 @@ class FearAndGreedIndexRepository {
       const nextUpdate = result.rows[0].next_update;
       return new Date() >= new Date(nextUpdate);
     } catch (error) {
-      logger.error("Error checking update time:", error);
+      logger.error(SENTIMENT.UPDATE_CHECK_ERROR, error);
       return true; // On error, assume we should update
     }
   }
@@ -74,7 +75,7 @@ class FearAndGreedIndexRepository {
       );
       return true;
     } catch (error) {
-      logger.error("Error updating last_update record:", error);
+      logger.error(SENTIMENT.LAST_UPDATE_ERROR, error);
       throw error;
     }
   }
@@ -92,7 +93,7 @@ class FearAndGreedIndexRepository {
       );
       return result.rows;
     } catch (error) {
-      logger.error("Error fetching historical data:", error);
+      logger.error(SENTIMENT.HISTORICAL_DATA_ERROR, error);
       throw error;
     }
   }
@@ -110,7 +111,7 @@ class FearAndGreedIndexRepository {
       );
       return result.rows.length > 0 ? result.rows[0] : null;
     } catch (error) {
-      logger.error("Error fetching latest fear and greed index data:", error);
+      logger.error(SENTIMENT.LATEST_DATA_ERROR, error);
       throw error;
     }
   }

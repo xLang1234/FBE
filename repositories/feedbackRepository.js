@@ -1,5 +1,6 @@
 // repositories/feedbackRepository.js
 const logger = require("../config/logger");
+const { FEEDBACK } = require("../constants/logMessages");
 
 class FeedbackRepository {
   constructor(pool) {
@@ -18,9 +19,10 @@ class FeedbackRepository {
         [userId || null, feedbackType, content, rating || null, source || null]
       );
 
+      logger.info(FEEDBACK.CREATE_SUCCESS);
       return result.rows[0];
     } catch (error) {
-      logger.error("Error creating feedback:", error);
+      logger.error(FEEDBACK.CREATE_ERROR, error);
       throw error;
     }
   }
@@ -44,7 +46,7 @@ class FeedbackRepository {
       );
       return result.rows.length > 0 ? result.rows[0] : null;
     } catch (error) {
-      logger.error(`Error getting feedback with id ${id}:`, error);
+      logger.error(FEEDBACK.GET_ERROR(id), error);
       throw error;
     }
   }
@@ -99,7 +101,7 @@ class FeedbackRepository {
 
       return result.rows;
     } catch (error) {
-      logger.error("Error getting all feedback:", error);
+      logger.error(FEEDBACK.GET_ALL_ERROR, error);
       throw error;
     }
   }
@@ -137,9 +139,13 @@ class FeedbackRepository {
         queryParams
       );
 
-      return result.rows.length > 0 ? result.rows[0] : null;
+      if (result.rows.length > 0) {
+        logger.info(FEEDBACK.UPDATE_SUCCESS(id));
+        return result.rows[0];
+      }
+      return null;
     } catch (error) {
-      logger.error(`Error updating feedback with id ${id}:`, error);
+      logger.error(FEEDBACK.UPDATE_ERROR(id), error);
       throw error;
     }
   }
@@ -150,9 +156,14 @@ class FeedbackRepository {
         `DELETE FROM feedback WHERE id = $1 RETURNING id`,
         [id]
       );
-      return result.rowCount > 0;
+
+      if (result.rowCount > 0) {
+        logger.info(FEEDBACK.DELETE_SUCCESS(id));
+        return true;
+      }
+      return false;
     } catch (error) {
-      logger.error(`Error deleting feedback with id ${id}:`, error);
+      logger.error(FEEDBACK.DELETE_ERROR(id), error);
       throw error;
     }
   }
