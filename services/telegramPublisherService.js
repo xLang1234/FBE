@@ -133,12 +133,19 @@ class TelegramPublisherService {
    * @returns {string} - Formatted message
    */
   formatMessage(content, entity) {
-    const publishedDate = new Date(content.published_at).toLocaleDateString();
-    let message = `<b>${entity.name}</b> ${entity.username ? `(@${entity.username})` : ""}\n\n`;
+    // Create header with entity name and username as a clickable link if possible
+    let message = "";
+
+    // Add entity name with link if username is available
+    if (entity.username) {
+      message += `<b><a href="https://t.me/${entity.username}">${entity.name}</a></b>\n\n`;
+    } else {
+      message += `<b>${entity.name}</b>\n\n`;
+    }
 
     // Add summary if available
     if (content.summary) {
-      message += `<b>Summary:</b> ${content.summary}\n\n`;
+      message += `${content.summary}\n\n`;
     } else {
       // Use a truncated version of the original content if no summary
       const truncatedContent =
@@ -148,24 +155,30 @@ class TelegramPublisherService {
       message += `${truncatedContent}\n\n`;
     }
 
-    // Add metadata and analytics
-    message += `<b>Published:</b> ${publishedDate}\n`;
+    // Add source link if external_id contains a URL or can be formed into one
+    // This assumes external_id might contain a URL or ID that can be transformed into a URL
+    if (content.external_id) {
+      let sourceUrl = "";
 
-    if (content.sentiment_score !== null) {
-      const sentimentLabel = this.getSentimentLabel(content.sentiment_score);
-      message += `<b>Sentiment:</b> ${sentimentLabel} (${content.sentiment_score.toFixed(2)})\n`;
-    }
+      // Handle different source types to create appropriate links
+      if (
+        content.content_type === "twitter" ||
+        content.content_type === "tweet"
+      ) {
+        sourceUrl = `https://twitter.com/i/status/${content.external_id}`;
+      } else if (content.content_type === "telegram") {
+        // For telegram content, you might need a different format depending on how you store external_id
+        sourceUrl = content.external_id.startsWith("https://")
+          ? content.external_id
+          : `https://t.me/c/${content.external_id}`;
+      } else if (content.external_id.startsWith("http")) {
+        // If it's already a URL
+        sourceUrl = content.external_id;
+      }
 
-    if (content.impact_score !== null) {
-      message += `<b>Impact Score:</b> ${content.impact_score.toFixed(2)}\n`;
-    }
-
-    if (content.categories && content.categories.length > 0) {
-      message += `<b>Categories:</b> ${content.categories.join(", ")}\n`;
-    }
-
-    if (content.keywords && content.keywords.length > 0) {
-      message += `<b>Keywords:</b> ${content.keywords.join(", ")}\n`;
+      if (sourceUrl) {
+        message += `<a href="${sourceUrl}">View source</a>`;
+      }
     }
 
     return message;
