@@ -4,6 +4,7 @@ const { pool } = require("../db");
 const cron = require("node-cron");
 const { initializeCryptoTables } = require("../db/schemas/cryptoListings");
 const coinMarketCapApiManager = require("../utils/coinmarketcapApiManager");
+const { CRYPTO, SERVICE, DATA } = require("../constants/logMessages");
 
 class CryptoListingsService {
   constructor() {
@@ -19,7 +20,7 @@ class CryptoListingsService {
       client.release();
       return true;
     } catch (error) {
-      logger.error("Failed to initialize cryptocurrency tables:", error);
+      logger.error(CRYPTO.TABLES_INIT_FAILURE, error);
       throw error;
     }
   }
@@ -44,7 +45,7 @@ class CryptoListingsService {
 
       return now >= nextUpdateAt;
     } catch (error) {
-      logger.error("Error checking if update is needed:", error);
+      logger.error(CRYPTO.UPDATE_CHECK_ERROR, error);
       return true;
     }
   }
@@ -65,11 +66,9 @@ class CryptoListingsService {
       );
 
       client.release();
-      logger.info(
-        `Next ${endpoint} update scheduled for ${nextUpdate.toISOString()}`
-      );
+      logger.info(CRYPTO.NEXT_UPDATE_SCHEDULED(nextUpdate.toISOString()));
     } catch (error) {
-      logger.error("Error updating last updated timestamp:", error);
+      logger.error(CRYPTO.TIMESTAMP_UPDATE_ERROR, error);
       throw error;
     }
   }
@@ -78,15 +77,15 @@ class CryptoListingsService {
     try {
       const endpoint = "listings/latest";
       if (!(await this.shouldUpdate(endpoint))) {
-        logger.debug("Skipping cryptocurrency data update - not time yet");
+        logger.debug(DATA.UPDATE_SKIPPED("cryptocurrency data"));
         return;
       }
 
-      logger.info("Updating cryptocurrency data from CoinMarketCap API");
+      logger.info(DATA.FETCHING("CoinMarketCap API"));
       const response = await this.fetchListingsFromApi();
 
       if (!response || !response.data) {
-        logger.error("No data returned from CoinMarketCap API");
+        logger.error(CRYPTO.API_NO_DATA);
         return;
       }
 
@@ -96,7 +95,7 @@ class CryptoListingsService {
       await this.saveLatestPrices(cryptoData);
       await this.updateLastUpdated(endpoint);
     } catch (error) {
-      logger.error("Failed to update cryptocurrency data:", error);
+      logger.error(CRYPTO.UPDATE_FAILURE, error);
       throw error;
     }
   }
@@ -106,7 +105,7 @@ class CryptoListingsService {
       const apiKey = coinMarketCapApiManager.getNextApiKey();
 
       logger.info(
-        `Fetching top ${limit} cryptocurrencies from CoinMarketCap API`
+        DATA.FETCHING(`top ${limit} cryptocurrencies from CoinMarketCap API`)
       );
 
       const response = await axios.get(
@@ -125,24 +124,21 @@ class CryptoListingsService {
 
       return response.data;
     } catch (error) {
-      logger.error(
-        "Error fetching cryptocurrency listings from API:",
-        error.message
-      );
+      logger.error(CRYPTO.API_FETCH_ERROR, error.message);
 
       if (error.response) {
-        logger.error("API response error:", {
+        logger.error(CRYPTO.API_RESPONSE_ERROR, {
           status: error.response.status,
           data: error.response.data,
         });
 
         if (error.response.status === 429) {
-          logger.warn("Rate limit hit, retrying with next API key");
+          logger.warn(CRYPTO.API_RATE_LIMIT);
           return this.fetchListingsFromApi(limit);
         }
       }
 
-      throw new Error("Failed to fetch cryptocurrency listings from API");
+      throw new Error(CRYPTO.API_FETCH_FAILURE);
     }
   }
 
@@ -160,10 +156,10 @@ class CryptoListingsService {
       }
 
       await client.query("COMMIT");
-      logger.info(`Saved ${cryptoData.length} cryptocurrencies to database`);
+      logger.info(CRYPTO.CRYPTOCURRENCIES_SAVED(cryptoData.length));
     } catch (error) {
       await client.query("ROLLBACK");
-      logger.error("Error saving cryptocurrencies to database:", error);
+      logger.error(CRYPTO.DB_SAVE_ERROR, error);
       throw error;
     } finally {
       client.release();
@@ -223,12 +219,10 @@ class CryptoListingsService {
       }
 
       await client.query("COMMIT");
-      logger.info(
-        `Saved latest prices for ${cryptoData.length} cryptocurrencies`
-      );
+      logger.info(CRYPTO.PRICES_SAVED(cryptoData.length));
     } catch (error) {
       await client.query("ROLLBACK");
-      logger.error("Error saving cryptocurrency prices to database:", error);
+      logger.error(CRYPTO.DB_SAVE_PRICES_ERROR, error);
       throw error;
     } finally {
       client.release();
@@ -338,7 +332,7 @@ class CryptoListingsService {
         },
       };
     } catch (error) {
-      logger.error("Error getting top cryptocurrencies:", error);
+      logger.error(CRYPTO.TOP_CRYPTO_ERROR, error);
       throw error;
     }
   }
@@ -361,7 +355,7 @@ class CryptoListingsService {
 
       if (result.rows.length === 0) {
         client.release();
-        throw new Error(`Cryptocurrency with symbol ${symbol} not found`);
+        throw new Error(CRYPTO.SYMBOL_NOT_FOUND(symbol));
       }
 
       const crypto = result.rows[0];
@@ -425,7 +419,7 @@ class CryptoListingsService {
         },
       };
     } catch (error) {
-      logger.error(`Error getting cryptocurrency by symbol ${symbol}:`, error);
+      logger.error(CRYPTO.SYMBOL_FETCH_ERROR(symbol), error);
       throw error;
     }
   }
@@ -441,7 +435,7 @@ class CryptoListingsService {
 
       if (cryptoResult.rows.length === 0) {
         client.release();
-        throw new Error(`Cryptocurrency with symbol ${symbol} not found`);
+        throw new Error(CRYPTO.SYMBOL_NOT_FOUND(symbol));
       }
 
       const cmcId = cryptoResult.rows[0].cmc_id;
@@ -482,7 +476,7 @@ class CryptoListingsService {
         },
       };
     } catch (error) {
-      logger.error(`Error getting historical prices for ${symbol}:`, error);
+      logger.error(CRYPTO.HISTORICAL_PRICES_ERROR(symbol), error);
       throw error;
     }
   }
@@ -560,7 +554,7 @@ class CryptoListingsService {
         timestamp: new Date().toISOString(),
       };
     } catch (error) {
-      logger.error("Error analyzing cryptocurrency data:", error);
+      logger.error(CRYPTO.ANALYSIS_ERROR, error);
       return { error: "Failed to analyze market data" };
     }
   }
@@ -580,7 +574,7 @@ class CryptoListingsService {
 
   startUpdateScheduler() {
     cron.schedule("*/20 * * * * *", async () => {
-      logger.info("Running scheduled cryptocurrency data update");
+      logger.info(SERVICE.SCHEDULER_RUNNING("cryptocurrency data"));
       await this.updateCryptocurrencyData();
     });
   }

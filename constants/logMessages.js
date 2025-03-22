@@ -85,6 +85,34 @@ const CONTENT = {
     `Entity with ID ${id} and all related content deleted successfully`,
 };
 
+// Cryptocurrency service messages
+const CRYPTO = {
+  TABLES_INIT_FAILURE: "Failed to initialize cryptocurrency tables:",
+  UPDATE_CHECK_ERROR: "Error checking if update is needed:",
+  TIMESTAMP_UPDATE_ERROR: "Error updating last updated timestamp:",
+  UPDATE_FAILURE: "Failed to update cryptocurrency data:",
+  API_NO_DATA: "No data returned from CoinMarketCap API",
+  API_FETCH_ERROR: "Error fetching cryptocurrency listings from API:",
+  API_RESPONSE_ERROR: "API response error:",
+  API_RATE_LIMIT: "Rate limit hit, retrying with next API key",
+  API_FETCH_FAILURE: "Failed to fetch cryptocurrency listings from API",
+  DB_SAVE_ERROR: "Error saving cryptocurrencies to database:",
+  DB_SAVE_PRICES_ERROR: "Error saving cryptocurrency prices to database:",
+  TOP_CRYPTO_ERROR: "Error getting top cryptocurrencies:",
+  SYMBOL_NOT_FOUND: (symbol) =>
+    `Cryptocurrency with symbol ${symbol} not found`,
+  SYMBOL_FETCH_ERROR: (symbol) =>
+    `Error getting cryptocurrency by symbol ${symbol}:`,
+  HISTORICAL_PRICES_ERROR: (symbol) =>
+    `Error getting historical prices for ${symbol}:`,
+  ANALYSIS_ERROR: "Error analyzing cryptocurrency data:",
+  NEXT_UPDATE_SCHEDULED: (timestamp) =>
+    `Next cryptocurrency update scheduled for ${timestamp}`,
+  CRYPTOCURRENCIES_SAVED: (count) =>
+    `Saved ${count} cryptocurrencies to database`,
+  PRICES_SAVED: (count) => `Saved latest prices for ${count} cryptocurrencies`,
+};
+
 // Error messages
 const ERROR = {
   DATABASE: "Database error:",
@@ -116,5 +144,6 @@ module.exports = {
   DATA,
   AUTH,
   CONTENT,
+  CRYPTO,
   ERROR,
 };
