@@ -1,4 +1,3 @@
-// services/altcoinSeason.js
 const axios = require("axios");
 const logger = require("../config/logger");
 const { pool } = require("../db");
@@ -26,9 +25,8 @@ class AltcoinSeasonService {
 
   async fetchAltcoinSeasonData(days = 30) {
     try {
-      // Calculate timestamps for the date range (now - days to now)
-      const endDate = Math.floor(Date.now() / 1000); // current time in seconds
-      const startDate = endDate - days * 24 * 60 * 60; // days back in seconds
+      const endDate = Math.floor(Date.now() / 1000);
+      const startDate = endDate - days * 24 * 60 * 60;
 
       const url = `https://api.coinmarketcap.com/data-api/v3/altcoin-season/chart?start=${startDate}&end=${endDate}&convertId=2781`;
 
@@ -58,7 +56,6 @@ class AltcoinSeasonService {
 
   async updateAltcoinSeasonData() {
     try {
-      // Check if update is needed
       const shouldUpdate = await this.repository.shouldUpdate(this.updateType);
 
       if (!shouldUpdate) {
@@ -67,12 +64,11 @@ class AltcoinSeasonService {
       }
 
       logger.info("Fetching altcoin season index data from CoinMarketCap");
-      const data = await this.fetchAltcoinSeasonData(30); // Get last 30 days of data
+      const data = await this.fetchAltcoinSeasonData(30);
 
       logger.info(`Saving ${data.length} altcoin season index records`);
       const insertedCount = await this.repository.saveBatch(data);
 
-      // Calculate next update time (24 hours from now)
       const nextUpdate = new Date();
       nextUpdate.setHours(nextUpdate.getHours() + 24);
 
@@ -131,7 +127,6 @@ class AltcoinSeasonService {
     }
   }
 
-  // Start scheduler for daily updates
   startUpdateScheduler() {
     const runUpdate = async () => {
       try {
@@ -142,10 +137,8 @@ class AltcoinSeasonService {
       }
     };
 
-    // Check every hour if an update is needed
     setInterval(runUpdate, 60 * 60 * 1000);
 
-    // Also run immediately on startup
     runUpdate();
   }
 
@@ -158,12 +151,10 @@ class AltcoinSeasonService {
         };
       }
 
-      // Sort data by timestamp (oldest first)
       const sortedData = [...data].sort(
         (a, b) => new Date(a.timestamp) - new Date(b.timestamp)
       );
 
-      // Calculate trend
       const firstValue = parseFloat(sortedData[0].altcoinIndex);
       const lastValue = parseFloat(
         sortedData[sortedData.length - 1].altcoinIndex
@@ -171,14 +162,12 @@ class AltcoinSeasonService {
       const change = lastValue - firstValue;
       const percentChange = (change / firstValue) * 100;
 
-      // Calculate average
       const sum = sortedData.reduce(
         (acc, item) => acc + parseFloat(item.altcoinIndex),
         0
       );
       const average = sum / sortedData.length;
 
-      // Determine market condition based on latest value
       let marketCondition;
       if (lastValue >= 75) {
         marketCondition = "Strong Altcoin Season";

@@ -1,4 +1,3 @@
-// services/cryptoSentiment.js
 const axios = require("axios");
 const logger = require("../config/logger");
 const { pool } = require("../db");
@@ -61,7 +60,6 @@ class FearAndGreedIndexService {
 
   async fetchHistoricalDataFromApi(count = 10) {
     try {
-      // Get API key from the shared manager
       const apiKey = coinMarketCapApiManager.getNextApiKey();
 
       logger.info(`Fetching ${count} days of data from CoinMarketCap API`);
@@ -89,7 +87,6 @@ class FearAndGreedIndexService {
           data: error.response.data,
         });
 
-        // If we get rate limited, try another key immediately
         if (error.response.status === 429) {
           logger.warn("Rate limit hit, retrying with next API key");
           return this.fetchHistoricalDataFromApi(count);
@@ -159,7 +156,7 @@ class FearAndGreedIndexService {
     }
 
     const sum = data.reduce((acc, item) => acc + item.value, 0);
-    const average = sum / data.length;
+    const average = sum;
 
     const sortedByDate = [...data].sort(
       (a, b) => new Date(a.timestamp) - new Date(b.timestamp)
@@ -199,12 +196,10 @@ class FearAndGreedIndexService {
     return "extreme_fear";
   }
 
-  // Send daily summary
   async sendDailySummary() {
     try {
       const client = await pool.connect();
 
-      // Get latest fear and greed index
       const fearGreedResult = await client.query(`
         SELECT value, value_classification, timestamp
         FROM fear_and_greed_index
@@ -217,7 +212,6 @@ class FearAndGreedIndexService {
           ? fearGreedResult.rows[0]
           : { value: "N/A", value_classification: "N/A" };
 
-      // Prepare the summary object
       const summary = {
         timestamp: new Date().toISOString(),
         fearGreedIndex: {
@@ -232,7 +226,6 @@ class FearAndGreedIndexService {
         },
       };
 
-      // Send the summary via Telegram
       await telegramIntegration.sendDailySummary(summary);
 
       client.release();
@@ -244,15 +237,12 @@ class FearAndGreedIndexService {
     }
   }
 
-  // Update the startUpdateScheduler function to include daily summary
   startUpdateScheduler() {
-    // Schedule updates every hour
     cron.schedule("0 * * * *", async () => {
       logger.info("Running scheduled fear and greed index update");
       await this.updateFearAndGreedData();
     });
 
-    // Schedule daily summary at 8:00 AM
     cron.schedule("0 8 * * *", async () => {
       logger.info("Sending daily fear and greed index summary");
       await this.sendDailySummary();

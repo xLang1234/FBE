@@ -1,25 +1,14 @@
-// services/cryptoListings.js
-// services/cryptoListings.js
 const axios = require("axios");
 const logger = require("../config/logger");
 const { pool } = require("../db");
-const db = require("../db");
 const cron = require("node-cron");
-const telegramIntegration = require("./cryptoTelegramIntegration");
 const { initializeCryptoTables } = require("../db/schemas/cryptoListings");
 const coinMarketCapApiManager = require("../utils/coinmarketcapApiManager");
-
-const {
-  createCryptocurrenciesTable,
-  createCryptocurrencyPricesTable,
-  createCryptocurrencyTagsTable,
-  createCryptoListingsLastUpdateTable,
-} = require("../db/schemas/cryptoListings");
 
 class CryptoListingsService {
   constructor() {
     this.baseUrl = "https://pro-api.coinmarketcap.com/v1";
-    this.updateInterval = 6 * 60 * 60 * 1000; // 6 hours in milliseconds
+    this.updateInterval = 20;
   }
 
   async initializeDatabase() {
@@ -44,18 +33,16 @@ class CryptoListingsService {
       client.release();
 
       if (result.rows.length === 0) {
-        // No record exists, we should update
         return true;
       }
 
       const nextUpdateAt = new Date(result.rows[0].next_update_at);
       const now = new Date();
 
-      // return now >= nextUpdateAt;
       return true;
     } catch (error) {
       logger.error("Error checking if update is needed:", error);
-      // If there's an error, assume we should update
+
       return true;
     }
   }
@@ -107,7 +94,6 @@ class CryptoListingsService {
 
   async fetchListingsFromApi(limit = 100) {
     try {
-      // Get the next API key from the shared manager
       const apiKey = coinMarketCapApiManager.getNextApiKey();
 
       logger.info(
@@ -140,7 +126,6 @@ class CryptoListingsService {
           data: error.response.data,
         });
 
-        // If we get rate limited, try another key immediately (if available)
         if (error.response.status === 429) {
           logger.warn("Rate limit hit, retrying with next API key");
           return this.fetchListingsFromApi(limit);
@@ -156,7 +141,6 @@ class CryptoListingsService {
       await client.query("BEGIN");
 
       for (const crypto of cryptoData) {
-        // Insert into cryptocurrencies table
         await client.query(
           `
           INSERT INTO cryptocurrencies (
@@ -184,7 +168,6 @@ class CryptoListingsService {
           ]
         );
 
-        // Insert tags if available
         if (crypto.tags && Array.isArray(crypto.tags)) {
           for (const tag of crypto.tags) {
             await client.query(
@@ -218,10 +201,6 @@ class CryptoListingsService {
 
       for (const crypto of cryptoData) {
         const quote = crypto.quote.USD;
-        console.log(
-          "🚀 ~ CryptoListingsService ~ saveLatestPrices ~ quote:",
-          quote
-        );
 
         await client.query(
           `
@@ -307,7 +286,6 @@ class CryptoListingsService {
         [limit, offset]
       );
 
-      // Get tags for each cryptocurrency
       const cryptosWithTags = [];
       for (const crypto of result.rows) {
         const tagResult = await client.query(
@@ -360,7 +338,6 @@ class CryptoListingsService {
 
       const crypto = result.rows[0];
 
-      // Get latest price data
       const priceResult = await client.query(
         `
         SELECT 
@@ -397,7 +374,6 @@ class CryptoListingsService {
         crypto.cmc_rank = priceResult.rows[0].cmc_rank;
       }
 
-      // Get tags
       const tagResult = await client.query(
         `SELECT tag FROM cryptocurrency_tags WHERE cmc_id = $1`,
         [crypto.cmc_id]
@@ -428,7 +404,6 @@ class CryptoListingsService {
     try {
       const client = await pool.connect();
 
-      // First find the cryptocurrency ID by symbol
       const cryptoResult = await client.query(
         `SELECT cmc_id FROM cryptocurrencies WHERE UPPER(symbol) = UPPER($1)`,
         [symbol]
@@ -443,7 +418,6 @@ class CryptoListingsService {
       const cutoffDate = new Date();
       cutoffDate.setDate(cutoffDate.getDate() - days);
 
-      // Get historical prices
       const pricesResult = await client.query(
         `
         SELECT 
@@ -488,19 +462,16 @@ class CryptoListingsService {
     }
 
     try {
-      // Market cap statistics
       const totalMarketCap = data.reduce(
         (sum, crypto) => sum + (crypto.market_cap || 0),
         0
       );
 
-      // Volume statistics
       const totalVolume = data.reduce(
         (sum, crypto) => sum + (crypto.volume_24h || 0),
         0
       );
 
-      // Performance metrics
       const performanceStats = data.reduce(
         (stats, crypto) => {
           if (crypto.percent_change_24h > 0) stats.gainers24h++;
@@ -512,14 +483,12 @@ class CryptoListingsService {
         { gainers24h: 0, losers24h: 0, gainers7d: 0, losers7d: 0 }
       );
 
-      // Calculate top performers
       const sortedByChange24h = [...data].sort(
         (a, b) => (b.percent_change_24h || 0) - (a.percent_change_24h || 0)
       );
       const topGainers = sortedByChange24h.slice(0, 5);
       const topLosers = sortedByChange24h.slice(-5).reverse();
 
-      // Calculate dominance of top 5 cryptocurrencies
       const top5MarketCap = data
         .slice(0, 5)
         .reduce((sum, crypto) => sum + (crypto.market_cap || 0), 0);
@@ -569,8 +538,7 @@ class CryptoListingsService {
   }
 
   startUpdateScheduler() {
-    // Update cryptocurrency data every 6 hours
-    cron.schedule("0 */6 * * *", async () => {
+    cron.schedule("*/20 * * * * *", async () => {
       logger.info("Running scheduled cryptocurrency data update");
       await this.updateCryptocurrencyData();
     });
