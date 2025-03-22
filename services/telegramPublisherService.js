@@ -130,9 +130,14 @@ class TelegramPublisherService {
    * Format content for Telegram message
    * @param {Object} content - The content object
    * @param {Object} entity - The entity object
-   * @returns {string} - Formatted message
+   * @returns {string|null} - Formatted message or null if should be skipped
    */
   formatMessage(content, entity) {
+    // Skip content without summary
+    if (!content.summary) {
+      return null;
+    }
+
     // Create header with entity name and username as a clickable link if possible
     let message = "";
 
@@ -143,20 +148,10 @@ class TelegramPublisherService {
       message += `<b>${entity.name}</b>\n\n`;
     }
 
-    // Add summary if available
-    if (content.summary) {
-      message += `${content.summary}\n\n`;
-    } else {
-      // Use a truncated version of the original content if no summary
-      const truncatedContent =
-        content.content.length > 200
-          ? content.content.substring(0, 200) + "..."
-          : content.content;
-      message += `${truncatedContent}\n\n`;
-    }
+    // Add summary
+    message += `${content.summary}\n\n`;
 
     // Add source link if external_id contains a URL or can be formed into one
-    // This assumes external_id might contain a URL or ID that can be transformed into a URL
     if (content.external_id) {
       let sourceUrl = "";
 
@@ -279,6 +274,15 @@ class TelegramPublisherService {
           // Format message for Telegram
           const message = this.formatMessage(content, entity);
 
+          // Skip if message is null (no summary)
+          if (message === null) {
+            logger.debug(
+              `Skipping content ID ${row.id} due to missing summary`
+            );
+            lastPublishedId = row.id; // Still update the last published ID to avoid reprocessing
+            continue;
+          }
+
           // Broadcast message to all registered Telegram chats
           const broadcastResult =
             await telegramService.broadcastMessage(message);
@@ -298,7 +302,7 @@ class TelegramPublisherService {
       }
 
       // Update the last published ID if we successfully published anything
-      if (successCount > 0) {
+      if (successCount > 0 || lastPublishedId > this.lastPublishedId) {
         await this.updateLastPublishedId(lastPublishedId);
         logger.info(`Published ${successCount} content items to Telegram`);
       }
@@ -373,6 +377,14 @@ class TelegramPublisherService {
 
       // Format message for Telegram
       const message = this.formatMessage(content, entity);
+
+      // Skip if message is null (no summary)
+      if (message === null) {
+        logger.warn(
+          `Skipping force publish of content ID ${contentId} due to missing summary`
+        );
+        return false;
+      }
 
       // Broadcast message to all registered Telegram chats
       const broadcastResult = await telegramService.broadcastMessage(message);
