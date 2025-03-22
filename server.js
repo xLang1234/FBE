@@ -103,6 +103,29 @@ app.get("/api/init-db", async (req, res) => {
 // Error handling middleware
 app.use(errorHandler);
 
+// Import at the top of server.js with other route imports
+const telegramPublisherRoutes = require("./routes/telegramPublisher");
+
+// Import with other service imports
+const telegramPublisherService = require("./services/telegramPublisherService");
+
+// Add this line where routes are registered
+app.use("/api/telegram-publisher", telegramPublisherRoutes);
+
+// Add this after the Telegram bot initialization in the server startup section
+// Auto-start the Telegram publisher service if enabled
+if (
+  process.env.TELEGRAM_BOT_TOKEN &&
+  process.env.ENABLE_TELEGRAM_PUBLISHER === "true"
+) {
+  const publisherInterval =
+    parseInt(process.env.TELEGRAM_PUBLISHER_INTERVAL || "60") * 1000;
+  telegramPublisherService.startPolling(publisherInterval);
+  logger.info(
+    `Telegram publisher service started with ${publisherInterval}ms interval`
+  );
+}
+
 // Start server
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, async () => {
