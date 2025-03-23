@@ -11,7 +11,6 @@ const authRoutes = require("./routes/auth");
 const userRoutes = require("./routes/user");
 const adminRoutes = require("./routes/admin");
 const cryptoRoutes = require("./routes/crypto");
-const telegramRoutes = require("./routes/telegram");
 const dbAdminRoutes = require("./routes/dbAdmin");
 const altcoinSeasonRoutes = require("./routes/altcoinSeason");
 const cryptoListingsRoutes = require("./routes/cryptoListings");
@@ -19,7 +18,6 @@ const feedbackRoutes = require("./routes/feedback");
 const paymentRoutes = require("./routes/payment");
 
 const fearAndGreedIndex = require("./services/cryptoSentiment");
-const telegramService = require("./services/telegram");
 const altcoinSeason = require("./services/altcoinSeason");
 const cryptoListings = require("./services/cryptoListings");
 const feedbackService = require("./services/feedback");
@@ -42,7 +40,6 @@ app.use("/api/auth", authRoutes);
 app.use("/api/user", userRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/crypto", cryptoRoutes);
-app.use("/api/telegram", telegramRoutes);
 app.use("/api/crypto", altcoinSeasonRoutes);
 app.use("/api/crypto", cryptoListingsRoutes);
 app.use("/api/feedback", feedbackRoutes);
@@ -101,17 +98,6 @@ app.listen(PORT, async () => {
 
   cryptoListings.startUpdateScheduler();
   logger.info(LOG.SERVICE.SCHEDULER_STARTED("Crypto listings"));
-
-  if (process.env.TELEGRAM_BOT_TOKEN) {
-    const initialized = await telegramService.initialize();
-    if (initialized) {
-      logger.info(LOG.SERVICE.TELEGRAM_INIT_SUCCESS);
-    } else {
-      logger.warn(LOG.SERVICE.TELEGRAM_INIT_FAILURE);
-    }
-  } else {
-    logger.warn(LOG.SERVICE.TELEGRAM_DISABLED);
-  }
 });
 
 process.on("uncaughtException", (error) => {

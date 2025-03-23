@@ -3,7 +3,6 @@ const logger = require("../config/logger");
 const { pool } = require("../db");
 const cron = require("node-cron");
 const FearAndGreedIndexRepository = require("../repositories/cryptoSentimentRepository");
-const telegramIntegration = require("./cryptoTelegramIntegration");
 const coinMarketCapApiManager = require("../utils/coinmarketcapApiManager");
 const {
   createFearAndGreedIndexTable,
@@ -196,56 +195,10 @@ class FearAndGreedIndexService {
     return "extreme_fear";
   }
 
-  async sendDailySummary() {
-    try {
-      const client = await pool.connect();
-
-      const fearGreedResult = await client.query(`
-        SELECT value, value_classification, timestamp
-        FROM fear_and_greed_index
-        ORDER BY timestamp DESC
-        LIMIT 1
-      `);
-
-      const fearGreedIndex =
-        fearGreedResult.rows.length > 0
-          ? fearGreedResult.rows[0]
-          : { value: "N/A", value_classification: "N/A" };
-
-      const summary = {
-        timestamp: new Date().toISOString(),
-        fearGreedIndex: {
-          value: fearGreedIndex.value,
-          classification: fearGreedIndex.value_classification,
-          timestamp: fearGreedIndex.timestamp,
-        },
-        altcoinSeasonIndex: {
-          value: "N/A",
-          classification: "N/A",
-          status: "API not implemented yet",
-        },
-      };
-
-      await telegramIntegration.sendDailySummary(summary);
-
-      client.release();
-      logger.info("Daily fear and greed index summary sent successfully");
-      return true;
-    } catch (error) {
-      logger.error("Error sending daily summary:", error);
-      return false;
-    }
-  }
-
   startUpdateScheduler() {
     cron.schedule("0 * * * *", async () => {
       logger.info("Running scheduled fear and greed index update");
       await this.updateFearAndGreedData();
-    });
-
-    cron.schedule("0 8 * * *", async () => {
-      logger.info("Sending daily fear and greed index summary");
-      await this.sendDailySummary();
     });
   }
 }

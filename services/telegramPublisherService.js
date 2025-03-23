@@ -112,9 +112,19 @@ class TelegramPublisherService {
 
     let message = "";
 
-    if (entity.username) {
-      message += `<b><a href="https://t.me/${entity.username}">${entity.name}</a></b>\n\n`;
+    // Create appropriate header based on content type
+    if (
+      content.content_type === "twitter" ||
+      content.content_type === "tweet"
+    ) {
+      // For Twitter content
+      if (entity.username) {
+        message += `<b><a href="https://twitter.com/${entity.username}">${entity.name}</a></b>\n\n`;
+      } else {
+        message += `<b>${entity.name}</b>\n\n`;
+      }
     } else {
+      // Default for other content types
       message += `<b>${entity.name}</b>\n\n`;
     }
 
