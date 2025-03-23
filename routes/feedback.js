@@ -6,11 +6,6 @@ const logger = require("../config/logger");
 const { authorize } = require("../middleware/authorize");
 const { requireRole } = require("../middleware/authorize");
 
-/**
- * @route   POST /api/feedback
- * @desc    Submit new feedback
- * @access  Public
- */
 router.post("/", authorize, async (req, res) => {
   try {
     const { feedbackType, content, rating, source } = req.body;
@@ -34,11 +29,6 @@ router.post("/", authorize, async (req, res) => {
   }
 });
 
-/**
- * @route   GET /api/feedback
- * @desc    Get all feedback (admin only)
- * @access  Private/Admin
- */
 router.get("/", authorize, requireRole(["admin"]), async (req, res) => {
   try {
     const { status, feedbackType, userId, limit, offset } = req.query;
@@ -59,11 +49,6 @@ router.get("/", authorize, requireRole(["admin"]), async (req, res) => {
   }
 });
 
-/**
- * @route   GET /api/feedback/my
- * @desc    Get current user's feedback
- * @access  Private
- */
 router.get("/my", authorize, async (req, res) => {
   try {
     const userId = req.user.id;
@@ -78,11 +63,6 @@ router.get("/my", authorize, async (req, res) => {
   }
 });
 
-/**
- * @route   GET /api/feedback/:id
- * @desc    Get specific feedback (admin or owning user)
- * @access  Private
- */
 router.get("/:id", authorize, async (req, res) => {
   try {
     const feedbackId = parseInt(req.params.id);
@@ -114,11 +94,6 @@ router.get("/:id", authorize, async (req, res) => {
   }
 });
 
-/**
- * @route   PUT /api/feedback/:id
- * @desc    Update feedback status (admin only)
- * @access  Private/Admin
- */
 router.put("/:id", authorize, requireRole(["admin"]), async (req, res) => {
   try {
     const feedbackId = parseInt(req.params.id);
@@ -141,11 +116,6 @@ router.put("/:id", authorize, requireRole(["admin"]), async (req, res) => {
   }
 });
 
-/**
- * @route   DELETE /api/feedback/:id
- * @desc    Delete feedback (admin only)
- * @access  Private/Admin
- */
 router.delete("/:id", authorize, requireRole(["admin"]), async (req, res) => {
   try {
     const feedbackId = parseInt(req.params.id);

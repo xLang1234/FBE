@@ -56,7 +56,7 @@ class TelegramPublisherService {
 
       if (!tableExists) {
         await pool.query(`
-          CREATE TABLE telegram_publishing_tracking (
+          CREATE TABLE IF NOT EXISTS telegram_publishing_tracking (
             id SERIAL PRIMARY KEY,
             last_published_id INTEGER NOT NULL DEFAULT 0,
             last_check_time TIMESTAMP WITH TIME ZONE DEFAULT NOW(),

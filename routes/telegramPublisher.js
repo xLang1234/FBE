@@ -6,11 +6,6 @@ const telegramPublisherService = require("../services/telegramPublisherService")
 const { authorize, requireRole } = require("../middleware/authorize");
 const logger = require("../config/logger");
 
-/**
- * Start the Telegram publisher service
- * @route POST /api/telegram-publisher/start
- * @access Admin
- */
 router.post("/start", authorize, requireRole(["admin"]), async (req, res) => {
   try {
     const { interval } = req.body;
@@ -29,11 +24,6 @@ router.post("/start", authorize, requireRole(["admin"]), async (req, res) => {
   }
 });
 
-/**
- * Stop the Telegram publisher service
- * @route POST /api/telegram-publisher/stop
- * @access Admin
- */
 router.post("/stop", authorize, requireRole(["admin"]), (req, res) => {
   try {
     telegramPublisherService.stopPolling();
@@ -49,11 +39,6 @@ router.post("/stop", authorize, requireRole(["admin"]), (req, res) => {
   }
 });
 
-/**
- * Get the status of the Telegram publisher service
- * @route GET /api/telegram-publisher/status
- * @access Admin
- */
 router.get("/status", authorize, requireRole(["admin"]), async (req, res) => {
   try {
     const tracking = await getTrackingInfo();
@@ -69,9 +54,6 @@ router.get("/status", authorize, requireRole(["admin"]), async (req, res) => {
   }
 });
 
-/**
- * Get tracking information from the database
- */
 async function getTrackingInfo() {
   const { pool } = require("../db");
 
@@ -92,11 +74,6 @@ async function getTrackingInfo() {
   }
 }
 
-/**
- * Manually check for new content and publish
- * @route POST /api/telegram-publisher/check-now
- * @access Admin
- */
 router.post(
   "/check-now",
   authorize,
@@ -115,6 +92,5 @@ router.post(
     }
   }
 );
-
 
 module.exports = router;

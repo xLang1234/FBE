@@ -4,9 +4,6 @@ const router = express.Router();
 const telegramService = require("../services/telegram");
 const logger = require("../config/logger");
 
-/**
- * Initialize the Telegram bot
- */
 router.post("/initialize", async (req, res) => {
   try {
     const success = await telegramService.initialize();
@@ -23,9 +20,6 @@ router.post("/initialize", async (req, res) => {
   }
 });
 
-/**
- * Send a message to a specific chat
- */
 router.post("/send", async (req, res) => {
   const { chatId, message } = req.body;
 
@@ -46,9 +40,6 @@ router.post("/send", async (req, res) => {
   }
 });
 
-/**
- * Broadcast a message to all registered chats
- */
 router.post("/broadcast", async (req, res) => {
   const { message } = req.body;
 
@@ -68,9 +59,6 @@ router.post("/broadcast", async (req, res) => {
   }
 });
 
-/**
- * Register a chat ID for broadcasting
- */
 router.post("/register", (req, res) => {
   const { chatId } = req.body;
 
@@ -82,9 +70,6 @@ router.post("/register", (req, res) => {
   res.status(200).json({ message: "Chat ID registered successfully" });
 });
 
-/**
- * Unregister a chat ID from broadcasting
- */
 router.delete("/register/:chatId", (req, res) => {
   const { chatId } = req.params;
 
@@ -96,9 +81,6 @@ router.delete("/register/:chatId", (req, res) => {
   res.status(200).json({ message: "Chat ID unregistered successfully" });
 });
 
-/**
- * Get all registered chat IDs
- */
 router.get("/registered", (req, res) => {
   const chatIds = telegramService.getRegisteredChatIds();
   res.status(200).json({ chatIds });

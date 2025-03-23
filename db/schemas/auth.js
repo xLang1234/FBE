@@ -3,7 +3,6 @@
  */
 
 const createAuthTables = async (pool) => {
-  // Create roles table
   await pool.query(`
     CREATE TABLE IF NOT EXISTS roles (
       id SERIAL PRIMARY KEY,
@@ -12,14 +11,12 @@ const createAuthTables = async (pool) => {
     )
   `);
 
-  // Insert default roles
   await pool.query(`
     INSERT INTO roles (name) 
     VALUES ('basic'), ('paid'), ('admin')
     ON CONFLICT (name) DO NOTHING
   `);
 
-  // Create users table with role_id field
   await pool.query(`
       CREATE TABLE IF NOT EXISTS users (
         id SERIAL PRIMARY KEY,
@@ -35,7 +32,6 @@ const createAuthTables = async (pool) => {
       )
     `);
 
-  // Create sessions table
   await pool.query(`
       CREATE TABLE IF NOT EXISTS sessions (
         id SERIAL PRIMARY KEY,
@@ -46,7 +42,6 @@ const createAuthTables = async (pool) => {
       )
     `);
 
-  // Create indexes
   await pool.query(`
       CREATE INDEX IF NOT EXISTS idx_users_google_id ON users(google_id);
       CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);

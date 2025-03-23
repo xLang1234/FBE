@@ -1,6 +1,4 @@
-// db/schemas/contentModels.js
 const createContentModelsTable = async (pool) => {
-  // Create sources table
   await pool.query(`
     CREATE TABLE IF NOT EXISTS sources (
       id SERIAL PRIMARY KEY,
@@ -14,7 +12,6 @@ const createContentModelsTable = async (pool) => {
     )
   `);
 
-  // Create entities table
   await pool.query(`
     CREATE TABLE IF NOT EXISTS entities (
       id SERIAL PRIMARY KEY,
@@ -31,7 +28,6 @@ const createContentModelsTable = async (pool) => {
     )
   `);
 
-  // Create raw_content table
   await pool.query(`
     CREATE TABLE IF NOT EXISTS raw_content (
       id SERIAL PRIMARY KEY,
@@ -47,7 +43,6 @@ const createContentModelsTable = async (pool) => {
     )
   `);
 
-  // Create processed_content table
   await pool.query(`
     CREATE TABLE IF NOT EXISTS processed_content (
       id SERIAL PRIMARY KEY,
@@ -62,7 +57,6 @@ const createContentModelsTable = async (pool) => {
     )
   `);
 
-  // Create indices for efficient querying
   await pool.query(`
     CREATE INDEX IF NOT EXISTS idx_entities_source_id ON entities(source_id);
     CREATE INDEX IF NOT EXISTS idx_raw_content_entity_id ON raw_content(entity_id);
@@ -71,6 +65,18 @@ const createContentModelsTable = async (pool) => {
     CREATE INDEX IF NOT EXISTS idx_entities_external_id ON entities(entity_external_id);
     CREATE INDEX IF NOT EXISTS idx_raw_content_published_at ON raw_content(published_at);
   `);
+
+  await pool.query(`
+          CREATE TABLE IF NOT EXISTS telegram_publishing_tracking (
+            id SERIAL PRIMARY KEY,
+            last_published_id INTEGER NOT NULL DEFAULT 0,
+            last_check_time TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+            updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+          );
+          
+          INSERT INTO telegram_publishing_tracking (last_published_id, last_check_time) 
+          VALUES (0, NOW());
+        `);
 };
 
 module.exports = {
