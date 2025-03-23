@@ -3,12 +3,13 @@ const router = express.Router();
 const contentService = require("../services/contentService");
 const logger = require("../config/logger");
 const { authorize, requireRole } = require("../middleware/authorize");
+const { CONTENT, ERROR } = require("../constants/logMessages");
 
 router.get("/sources", authorize, requireRole(["admin"]), async (req, res) => {
   try {
     const { type, isActive } = req.query;
 
-    logger.info("Fetching content sources");
+    logger.info(CONTENT.FETCH_SOURCES);
     const result = await contentService.getSources({
       type,
       isActive: isActive !== undefined ? isActive === "true" : undefined,
@@ -16,7 +17,7 @@ router.get("/sources", authorize, requireRole(["admin"]), async (req, res) => {
 
     res.json(result);
   } catch (error) {
-    logger.error("Error in get content sources endpoint:", error);
+    logger.error(ERROR.CONTENT_SOURCES, error);
     res.status(500).json({ status: "error", message: error.message });
   }
 });
@@ -32,7 +33,7 @@ router.post("/sources", authorize, requireRole(["admin"]), async (req, res) => {
       });
     }
 
-    logger.info(`Creating new content source: ${name} (${type})`);
+    logger.info(CONTENT.CREATE_SOURCE(name, type));
     const result = await contentService.createSource({
       name,
       type,
@@ -43,7 +44,7 @@ router.post("/sources", authorize, requireRole(["admin"]), async (req, res) => {
 
     res.status(201).json(result);
   } catch (error) {
-    logger.error("Error in create content source endpoint:", error);
+    logger.error(ERROR.CREATE_CONTENT_SOURCE, error);
     res.status(400).json({ status: "error", message: error.message });
   }
 });
@@ -57,7 +58,7 @@ router.put(
       const sourceId = parseInt(req.params.id);
       const updates = req.body;
 
-      logger.info(`Updating content source ID ${sourceId}`);
+      logger.info(CONTENT.SOURCE_UPDATED(sourceId));
       const result = await contentService.updateSource(sourceId, updates);
 
       if (result.status === "error") {
@@ -66,10 +67,7 @@ router.put(
 
       res.json(result);
     } catch (error) {
-      logger.error(
-        `Error in update content source endpoint for ID ${req.params.id}:`,
-        error
-      );
+      logger.error(ERROR.UPDATE_CONTENT_SOURCE(req.params.id), error);
       res.status(400).json({ status: "error", message: error.message });
     }
   }
@@ -87,7 +85,7 @@ router.get("/entities", authorize, async (req, res) => {
       offset,
     } = req.query;
 
-    logger.info("Fetching content entities");
+    logger.info(CONTENT.FETCH_ENTITIES);
     const result = await contentService.getEntities({
       sourceId: sourceId ? parseInt(sourceId) : undefined,
       isActive: isActive !== undefined ? isActive === "true" : undefined,
@@ -100,7 +98,7 @@ router.get("/entities", authorize, async (req, res) => {
 
     res.json(result);
   } catch (error) {
-    logger.error("Error in get content entities endpoint:", error);
+    logger.error(ERROR.CONTENT_ENTITIES, error);
     res.status(500).json({ status: "error", message: error.message });
   }
 });
@@ -109,15 +107,12 @@ router.get("/entities/by-source-type/:type", authorize, async (req, res) => {
   try {
     const sourceType = req.params.type;
 
-    logger.info(`Fetching content entities for source type: ${sourceType}`);
+    logger.info(CONTENT.FETCH_ENTITIES_BY_SOURCE(sourceType));
     const result = await contentService.getEntitiesBySourceType(sourceType);
 
     res.json(result);
   } catch (error) {
-    logger.error(
-      `Error in get entities by source type endpoint for type ${req.params.type}:`,
-      error
-    );
+    logger.error(ERROR.ENTITIES_BY_SOURCE_TYPE(req.params.type), error);
     res.status(500).json({ status: "error", message: error.message });
   }
 });
@@ -146,7 +141,7 @@ router.post(
         });
       }
 
-      logger.info(`Creating new entity: ${name}`);
+      logger.info(CONTENT.ENTITY_CREATED(name, sourceId));
       const result = await contentService.createEntity({
         sourceId,
         entityExternalId,
@@ -164,7 +159,7 @@ router.post(
 
       res.status(201).json(result);
     } catch (error) {
-      logger.error("Error in create entity endpoint:", error);
+      logger.error(ERROR.CREATE_ENTITY, error);
       res.status(400).json({ status: "error", message: error.message });
     }
   }
@@ -190,7 +185,7 @@ router.post("/raw", authorize, requireRole(["admin"]), async (req, res) => {
       });
     }
 
-    logger.info(`Storing raw content for entity ID ${entityId}`);
+    logger.info(CONTENT.STORE_RAW_CONTENT(entityId));
     const result = await contentService.storeRawContent({
       entityId,
       externalId,
@@ -207,7 +202,7 @@ router.post("/raw", authorize, requireRole(["admin"]), async (req, res) => {
 
     res.status(201).json(result);
   } catch (error) {
-    logger.error("Error in store raw content endpoint:", error);
+    logger.error(ERROR.STORE_RAW_CONTENT, error);
     res.status(400).json({ status: "error", message: error.message });
   }
 });
@@ -235,9 +230,7 @@ router.post(
         });
       }
 
-      logger.info(
-        `Storing processed content for raw content ID ${rawContentId}`
-      );
+      logger.info(CONTENT.STORE_PROCESSED_CONTENT(rawContentId));
       const result = await contentService.storeProcessedContent({
         rawContentId,
         sentimentScore,
@@ -254,7 +247,7 @@ router.post(
 
       res.status(201).json(result);
     } catch (error) {
-      logger.error("Error in store processed content endpoint:", error);
+      logger.error(ERROR.STORE_PROCESSED_CONTENT, error);
       res.status(400).json({ status: "error", message: error.message });
     }
   }
@@ -268,14 +261,14 @@ router.get(
     try {
       const { limit } = req.query;
 
-      logger.info("Fetching unprocessed content");
+      logger.info(CONTENT.FETCH_UNPROCESSED_CONTENT);
       const result = await contentService.getUnprocessedContent(
         limit ? parseInt(limit) : undefined
       );
 
       res.json(result);
     } catch (error) {
-      logger.error("Error in get unprocessed content endpoint:", error);
+      logger.error(ERROR.UNPROCESSED_CONTENT, error);
       res.status(500).json({ status: "error", message: error.message });
     }
   }

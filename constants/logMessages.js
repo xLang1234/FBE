@@ -106,6 +106,10 @@ const CONTENT = {
   FETCH_UNPROCESSED_CONTENT: "Fetching unprocessed content",
   FETCH_CONTENT_METRICS: "Fetching content with metrics",
   FETCH_METRICS_BY_CATEGORY: "Fetching metrics by category",
+  CREATE_SOURCE: (name, type) =>
+    `Creating new content source: ${name} (${type})`,
+  DELETE_ENTITY: (id) => `Deleting entity ID ${id}`,
+  DELETE_CONTENT: (id) => `Deleting content ID ${id}`,
 };
 
 // Cryptocurrency service messages
@@ -204,6 +208,21 @@ const ERROR = {
   FEAR_GREED_LATEST: "Error in latest fear and greed index endpoint:",
   FEAR_GREED_ANALYSIS: "Error in fear and greed index analysis endpoint:",
   FEAR_GREED_UPDATE: "Error in force update endpoint:",
+  CONTENT_SOURCES: "Error in get content sources endpoint:",
+  CREATE_CONTENT_SOURCE: "Error in create content source endpoint:",
+  UPDATE_CONTENT_SOURCE: (id) =>
+    `Error in update content source endpoint for ID ${id}:`,
+  CONTENT_ENTITIES: "Error in get content entities endpoint:",
+  ENTITIES_BY_SOURCE_TYPE: (type) =>
+    `Error in get entities by source type endpoint for type ${type}:`,
+  CREATE_ENTITY: "Error in create entity endpoint:",
+  STORE_RAW_CONTENT: "Error in store raw content endpoint:",
+  STORE_PROCESSED_CONTENT: "Error in store processed content endpoint:",
+  UNPROCESSED_CONTENT: "Error in get unprocessed content endpoint:",
+  CONTENT_WITH_METRICS: "Error in get content with metrics endpoint:",
+  METRICS_BY_CATEGORY: "Error in get metrics by category endpoint:",
+  DELETE_CONTENT: (id) => `Error in delete content endpoint for ID ${id}:`,
+  DELETE_ENTITY: (id) => `Error in delete entity endpoint for ID ${id}:`,
 };
 
 // Sentiment analysis messages
@@ -298,6 +317,17 @@ const ALTCOIN = {
     `Next altcoin season update scheduled for ${timestamp}`,
 };
 
+// Routes messages
+const ROUTES = {
+  ALTCOIN_HISTORICAL: (days) =>
+    `Fetching ${days} days of historical altcoin season data from database`,
+  ALTCOIN_LATEST: "Fetching latest altcoin season data from database",
+  ALTCOIN_ANALYSIS: (days) =>
+    `Analyzing altcoin season data for the last ${days} days from database`,
+  ALTCOIN_FORCE_UPDATE: "Admin requested force update of altcoin season data",
+  ALTCOIN_UPDATE_SUCCESS: "Altcoin season data update triggered successfully",
+};
+
 module.exports = {
   SERVER,
   SERVICE,
@@ -312,4 +342,5 @@ module.exports = {
   ENTITY,
   ADMIN,
   ALTCOIN,
+  ROUTES,
 };
