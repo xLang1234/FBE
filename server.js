@@ -62,12 +62,6 @@ app.get("/api/init-db", async (req, res) => {
 
   try {
     await db.initializeDatabase();
-    await contentService.initializeDatabase();
-    await fearAndGreedIndex.initializeDatabase();
-    await altcoinSeason.initializeDatabase();
-    await cryptoListings.initializeDatabase();
-    await feedbackService.initializeDatabase();
-
     logger.info(LOG.SERVER.DB_INIT_SUCCESS);
     res.status(200).json({ message: LOG.SERVER.DB_INIT_SUCCESS });
   } catch (error) {
