@@ -1,5 +1,5 @@
 const crypto = require("crypto");
-const { pool } = require("../config/db");
+const { pool } = require("../db/connection");
 
 const generateSessionToken = () => {
   return crypto.randomBytes(64).toString("hex");

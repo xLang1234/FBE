@@ -1,7 +1,7 @@
 const bcrypt = require("bcrypt");
 const logger = require("../config/logger");
 const LOG = require("../constants/logMessages");
-const { pool } = require("../config/db");
+const { pool } = require("../db/connection");
 const { createSession } = require("../utils/sessionUtils");
 const { verifyGoogleToken } = require("../config/auth");
 

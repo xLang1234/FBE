@@ -2,7 +2,7 @@
 const express = require("express");
 const router = express.Router();
 const logger = require("../config/logger");
-const { pool } = require("../config/db");
+const { pool } = require("../db/connection");
 const { authorize, requireRole } = require("../middleware/authorize");
 const { changeUserRole } = require("../services/authService");
 const { ADMIN, ERROR } = require("../constants/logMessages");

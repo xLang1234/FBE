@@ -1,6 +1,6 @@
 // middleware/authorize.js
 const logger = require("../config/logger");
-const { pool } = require("../config/db");
+const { pool } = require("../db/connection");
 
 // Authorization middleware
 const authorize = async (req, res, next) => {

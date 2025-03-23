@@ -2,7 +2,7 @@
 const express = require("express");
 const router = express.Router();
 const logger = require("../config/logger");
-const { pool } = require("../config/db");
+const { pool } = require("../db/connection");
 const { authorize } = require("../middleware/authorize");
 
 // Get user profile
