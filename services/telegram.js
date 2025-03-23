@@ -9,16 +9,12 @@ class TelegramService {
     this.apiUrl = `https://api.telegram.org/bot${this.apiToken}`;
     this.chatIds = new Set();
 
-    // Load chat IDs from environment variable if available
     if (process.env.TELEGRAM_CHAT_IDS) {
       const ids = process.env.TELEGRAM_CHAT_IDS.split(",");
       ids.forEach((id) => this.chatIds.add(id.trim()));
     }
   }
 
-  /**
-   * Initialize the Telegram bot and verify the token
-   */
   async initialize() {
     if (!this.apiToken) {
       logger.error(
@@ -44,12 +40,6 @@ class TelegramService {
     }
   }
 
-  /**
-   * Send a message to a specific chat
-   * @param {string} chatId - The chat ID to send the message to
-   * @param {string} message - The message to send
-   * @returns {Promise<boolean>} - Whether the message was sent successfully
-   */
   async sendMessage(chatId, message) {
     if (!this.apiToken) {
       logger.error("Cannot send message: TELEGRAM_BOT_TOKEN is not defined");
@@ -80,11 +70,6 @@ class TelegramService {
     }
   }
 
-  /**
-   * Broadcast a message to all registered chat IDs
-   * @param {string} message - The message to broadcast
-   * @returns {Promise<{success: number, failed: number}>} - Count of successful and failed deliveries
-   */
   async broadcastMessage(message) {
     if (this.chatIds.size === 0) {
       logger.warn("No chat IDs registered for broadcasting");
@@ -107,33 +92,20 @@ class TelegramService {
     return { success, failed };
   }
 
-  /**
-   * Register a chat ID for broadcasting
-   * @param {string} chatId - The chat ID to register
-   */
   registerChatId(chatId) {
     this.chatIds.add(chatId);
     logger.info(`Chat ID ${chatId} registered for broadcasts`);
   }
 
-  /**
-   * Unregister a chat ID from broadcasting
-   * @param {string} chatId - The chat ID to unregister
-   */
   unregisterChatId(chatId) {
     this.chatIds.delete(chatId);
     logger.info(`Chat ID ${chatId} unregistered from broadcasts`);
   }
 
-  /**
-   * Get all registered chat IDs
-   * @returns {string[]} - Array of registered chat IDs
-   */
   getRegisteredChatIds() {
     return Array.from(this.chatIds);
   }
 }
 
-// Create and export a singleton instance
 const telegramService = new TelegramService();
 module.exports = telegramService;
